@@ -1,0 +1,193 @@
+# Food Delivery Project - .gitignore
+
+# ====================================
+# PHP & Composer
+# ====================================
+/vendor/
+composer.phar
+composer.lock
+.env
+.env.local
+.env.*.local
+
+# ====================================
+# Symfony specific
+# ====================================
+# Symfony cache & logs
+food-delivery-symfony/var/
+food-delivery-symfony/var/cache/
+food-delivery-symfony/var/logs/
+food-delivery-symfony/var/sessions/
+
+# Symfony config
+food-delivery-symfony/config/packages/dev/
+food-delivery-symfony/config/packages/test/
+
+# Symfony public assets
+food-delivery-symfony/public/bundles/
+food-delivery-symfony/public/build/
+
+# ====================================
+# Database & Configuration
+# ====================================
+# Database files
+*.sql
+*.sqlite
+*.db
+
+# Configuration files with sensitive data
+config/database.php
+config/database.local.php
+config/config.local.php
+
+# ====================================
+# Uploads & Media
+# ====================================
+# User uploaded files
+uploads/
+media/
+images/users/
+images/restaurants/
+images/menu/
+
+# ====================================
+# Logs & Temporary files
+# ====================================
+# Log files
+*.log
+logs/
+error_log
+access_log
+
+# Temporary files
+*.tmp
+*.temp
+temp/
+tmp/
+
+# ====================================
+# IDE & Editor files
+# ====================================
+# Visual Studio Code
+.vscode/
+*.code-workspace
+
+# PHPStorm
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# Vim
+*.swp
+*.swo
+*~
+
+# ====================================
+# OS generated files
+# ====================================
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+
+# Linux
+*~
+.fuse_hidden*
+.directory
+.Trash-*
+
+# ====================================
+# Backup files
+# ====================================
+*.bak
+*.backup
+*.old
+*.orig
+*.save
+
+# ====================================
+# Node.js (if using frontend build tools)
+# ====================================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+yarn.lock
+
+# ====================================
+# Testing & Coverage
+# ====================================
+# PHPUnit
+phpunit.xml
+tests/coverage/
+.phpunit.result.cache
+
+# ====================================
+# Security
+# ====================================
+# Sensitive files
+*.key
+*.pem
+*.crt
+*.p12
+*.pfx
+
+# ====================================
+# Custom exclusions for this project
+# ====================================
+# Keep these files (remove from ignore if needed)
+!config/database.example.php
+!config/config.example.php
+
+# ====================================
+# Development specific
+# ====================================
+# Development environment files
+.env.development
+.env.staging
+.env.production
+
+# Local development files
+local/
+dev/
+development/
+
+# ====================================
+# Build & Distribution
+# ====================================
+# Build artifacts
+build/
+dist/
+release/
+
+# ====================================
+# Documentation
+# ====================================
+# Generated documentation
+docs/build/
+docs/generated/
+
+# ====================================
+# Notes
+# ====================================
+# This .gitignore file is designed for:
+# - PHP projects (both vanilla and Symfony)
+# - Food delivery applications
+# - Development and production environments
+# 
+# If you need to commit any of these ignored files,
+# use: git add -f filename
