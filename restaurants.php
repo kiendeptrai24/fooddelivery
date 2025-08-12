@@ -27,8 +27,13 @@ if (!empty($cuisine)) {
 
 $where_clause = implode(' AND ', $where_conditions);
 
-// Get restaurants
-$sql = "SELECT * FROM restaurants WHERE $where_clause ORDER BY featured DESC, name ASC";
+// Get restaurants with menu item count
+$sql = "SELECT r.*, COUNT(m.id) as menu_count 
+        FROM restaurants r 
+        LEFT JOIN menu_items m ON r.id = m.restaurant_id
+        WHERE $where_clause 
+        GROUP BY r.id 
+        ORDER BY r.featured DESC, r.name ASC";
 $stmt = mysqli_prepare($conn, $sql);
 
 if (!empty($params)) {
@@ -198,9 +203,13 @@ while ($row = mysqli_fetch_assoc($cuisines_result)) {
                                         <i class="fas fa-utensils me-1"></i>
                                         <?php echo htmlspecialchars($restaurant['cuisine']); ?>
                                     </span>
-                                    <span class="badge bg-info">
+                                    <span class="badge bg-info me-2">
                                         <i class="fas fa-map-marker-alt me-1"></i>
                                         <?php echo htmlspecialchars($restaurant['address']); ?>
+                                    </span>
+                                    <span class="badge bg-warning">
+                                        <i class="fas fa-utensils me-1"></i>
+                                        <?php echo $restaurant['menu_count']; ?> món
                                     </span>
                                 </div>
                                 
