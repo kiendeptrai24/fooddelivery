@@ -27,7 +27,7 @@ $orders_result = mysqli_query($conn, $orders_sql);
 $stats['orders'] = mysqli_fetch_assoc($orders_result)['count'];
 
 // Total revenue
-$revenue_sql = "SELECT SUM(total_amount) as total FROM orders WHERE status = 'delivered'";
+$revenue_sql = "SELECT SUM(total) as total FROM orders WHERE status = 'delivered'";
 $revenue_result = mysqli_query($conn, $revenue_sql);
 $stats['revenue'] = mysqli_fetch_assoc($revenue_result)['total'] ?: 0;
 
@@ -88,7 +88,7 @@ $recent_users = mysqli_query($conn, $recent_users_sql);
                         </li>
                         <li class="nav-item">
                             <a class="nav-link" href="menu.php">
-                                <i class="fas fa-utensils"></i>Quản lý menu
+                                <i class="fas fa-utensils"></i>Quản lý thực đơn
                             </a>
                         </li>
                         <li class="nav-item">
@@ -206,7 +206,7 @@ $recent_users = mysqli_query($conn, $recent_users_sql);
                                                     <td>#<?php echo $order['id']; ?></td>
                                                     <td><?php echo htmlspecialchars($order['username']); ?></td>
                                                     <td><?php echo htmlspecialchars($order['restaurant_name']); ?></td>
-                                                    <td><?php echo number_format($order['total_amount'], 0, ',', '.'); ?> ₫</td>
+                                                    <td><?php echo number_format($order['total'], 0, ',', '.'); ?> ₫</td>
                                                     <td>
                                                         <span class="badge status-<?php echo $order['status']; ?>">
                                                             <?php
