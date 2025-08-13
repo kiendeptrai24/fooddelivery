@@ -8,17 +8,8 @@ if (!isset($_SESSION['user_id'])) {
     exit();
 }
 
-// Get user orders
-$user_id = $_SESSION['user_id'];
-$sql = "SELECT o.*, r.name as restaurant_name, r.image as restaurant_image 
-        FROM orders o 
-        JOIN restaurants r ON o.restaurant_id = r.id 
-        WHERE o.user_id = ? 
-        ORDER BY o.created_at DESC";
-$stmt = mysqli_prepare($conn, $sql);
-mysqli_stmt_bind_param($stmt, "i", $user_id);
-mysqli_stmt_execute($stmt);
-$orders = mysqli_stmt_get_result($stmt);
+// Get orders from localStorage (will be handled by JavaScript)
+$orders = [];
 ?>
 <!DOCTYPE html>
 <html lang="vi">
@@ -29,6 +20,140 @@ $orders = mysqli_stmt_get_result($stmt);
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link href="assets/css/style.css" rel="stylesheet">
+    <style>
+        .order-card {
+            border: 1px solid #dee2e6;
+            border-radius: 10px;
+            margin-bottom: 1.5rem;
+            transition: all 0.3s ease;
+        }
+        
+        .order-card:hover {
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            transform: translateY(-2px);
+        }
+        
+        .order-header {
+            background: linear-gradient(135deg, #007bff, #0056b3);
+            color: white;
+            padding: 1rem;
+            border-radius: 10px 10px 0 0;
+        }
+        
+        .order-status {
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.875rem;
+            font-weight: 500;
+        }
+        
+        .status-pending {
+            background: #fff3cd;
+            color: #856404;
+        }
+        
+        .status-confirmed {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+        
+        .status-preparing {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .status-delivering {
+            background: #cce5ff;
+            color: #004085;
+        }
+        
+        .status-delivered {
+            background: #d1e7dd;
+            color: #0f5132;
+        }
+        
+        .status-cancelled {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .order-items {
+            padding: 1rem;
+        }
+        
+        .order-item {
+            display: flex;
+            align-items: center;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid #f8f9fa;
+        }
+        
+        .order-item:last-child {
+            border-bottom: none;
+        }
+        
+        .order-item-image {
+            width: 50px;
+            height: 50px;
+            object-fit: cover;
+            border-radius: 8px;
+            margin-right: 1rem;
+        }
+        
+        .order-summary {
+            background: #f8f9fa;
+            padding: 1rem;
+            border-radius: 0 0 10px 10px;
+        }
+        
+        .empty-orders {
+            text-align: center;
+            padding: 4rem 2rem;
+        }
+        
+        .empty-orders i {
+            font-size: 4rem;
+            color: #6c757d;
+            margin-bottom: 1rem;
+            opacity: 0.5;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 2rem;
+        }
+        
+        .spinner-border {
+            width: 3rem;
+            height: 3rem;
+        }
+        
+        .order-timeline {
+            padding: 1rem;
+            border-left: 2px solid #dee2e6;
+            margin-left: 1rem;
+        }
+        
+        .timeline-item {
+            position: relative;
+            margin-bottom: 1rem;
+        }
+        
+        .timeline-item::before {
+            content: '';
+            position: absolute;
+            left: -0.5rem;
+            top: 0.25rem;
+            width: 0.75rem;
+            height: 0.75rem;
+            background: #007bff;
+            border-radius: 50%;
+        }
+        
+        .timeline-item.active::before {
+            background: #28a745;
+        }
+    </style>
 </head>
 <body>
     <!-- Navigation -->
@@ -73,86 +198,49 @@ $orders = mysqli_stmt_get_result($stmt);
         </div>
     </nav>
 
-    <!-- Main Content -->
-    <div class="container py-5">
-        <div class="row">
-            <div class="col-12">
-                <h1 class="mb-4">
-                    <i class="fas fa-list-alt me-2"></i>Đơn hàng của tôi
-                </h1>
-                
-                <?php if (mysqli_num_rows($orders) == 0): ?>
-                    <div class="text-center py-5">
-                        <i class="fas fa-shopping-bag fa-3x text-muted mb-3"></i>
-                        <h4 class="text-muted">Bạn chưa có đơn hàng nào</h4>
-                        <p class="text-muted">Hãy đặt món ăn ngon từ các nhà hàng của chúng tôi!</p>
-                        <a href="restaurants.php" class="btn btn-primary">
-                            <i class="fas fa-utensils me-2"></i>Xem nhà hàng
-                        </a>
-                    </div>
-                <?php else: ?>
-                    <div class="row">
-                        <?php while ($order = mysqli_fetch_assoc($orders)): ?>
-                            <div class="col-md-6 col-lg-4 mb-4">
-                                <div class="card h-100 order-card">
-                                    <div class="card-header bg-light">
-                                        <div class="d-flex justify-content-between align-items-center">
-                                            <span class="badge bg-primary">#<?php echo $order['id']; ?></span>
-                                            <span class="badge bg-<?php echo getStatusColor($order['status']); ?>">
-                                                <?php echo getStatusText($order['status']); ?>
-                                            </span>
-                                        </div>
-                                    </div>
-                                    <div class="card-body">
-                                        <div class="d-flex align-items-center mb-3">
-                                            <img src="<?php echo $order['restaurant_image']; ?>" 
-                                                 alt="<?php echo $order['restaurant_name']; ?>" 
-                                                 class="rounded me-3" 
-                                                 style="width: 50px; height: 50px; object-fit: cover;">
-                                            <div>
-                                                <h6 class="mb-0"><?php echo $order['restaurant_name']; ?></h6>
-                                                <small class="text-muted">
-                                                    <i class="fas fa-calendar me-1"></i>
-                                                    <?php echo date('d/m/Y H:i', strtotime($order['created_at'])); ?>
-                                                </small>
-                                            </div>
-                                        </div>
-                                        
-                                        <div class="mb-3">
-                                            <strong>Tổng tiền:</strong> 
-                                            <span class="text-primary"><?php echo number_format($order['total_amount']); ?> VNĐ</span>
-                                        </div>
-                                        
-                                        <div class="mb-3">
-                                            <strong>Địa chỉ giao hàng:</strong><br>
-                                            <small class="text-muted"><?php echo $order['delivery_address']; ?></small>
-                                        </div>
-                                        
-                                        <div class="mb-3">
-                                            <strong>Phương thức thanh toán:</strong><br>
-                                            <span class="badge bg-secondary">
-                                                <?php echo getPaymentMethodText($order['payment_method']); ?>
-                                            </span>
-                                        </div>
-                                        
-                                        <?php if ($order['notes']): ?>
-                                            <div class="mb-3">
-                                                <strong>Ghi chú:</strong><br>
-                                                <small class="text-muted"><?php echo $order['notes']; ?></small>
-                                            </div>
-                                        <?php endif; ?>
-                                    </div>
-                                    <div class="card-footer">
-                                        <a href="order_details.php?id=<?php echo $order['id']; ?>" 
-                                           class="btn btn-outline-primary btn-sm">
-                                            <i class="fas fa-eye me-1"></i>Xem chi tiết
-                                        </a>
-                                    </div>
-                                </div>
-                            </div>
-                        <?php endwhile; ?>
-                    </div>
-                <?php endif; ?>
+    <!-- Page Header -->
+    <div class="bg-light py-4">
+        <div class="container">
+            <div class="row align-items-center">
+                <div class="col-md-6">
+                    <h1 class="h3 mb-0">
+                        <i class="fas fa-list-alt me-2 text-primary"></i>Đơn hàng của tôi
+                    </h1>
+                    <p class="text-muted mb-0">Theo dõi trạng thái đơn hàng</p>
+                </div>
+                <div class="col-md-6 text-md-end">
+                    <a href="restaurants.php" class="btn btn-primary">
+                        <i class="fas fa-plus me-2"></i>Đặt món mới
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Orders Content -->
+    <div class="container mt-4">
+        <!-- Loading State -->
+        <div id="loadingState" class="loading">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Đang tải...</span>
+            </div>
+            <p class="mt-2">Đang tải đơn hàng...</p>
+        </div>
+
+        <!-- Orders Container -->
+        <div id="ordersContainer" style="display: none;">
+            <!-- Orders will be populated here -->
+        </div>
+
+        <!-- Empty Orders State -->
+        <div id="emptyOrders" style="display: none;">
+            <div class="empty-orders">
+                <i class="fas fa-clipboard-list"></i>
+                <h4 class="text-muted">Chưa có đơn hàng nào</h4>
+                <p class="text-muted">Bạn chưa đặt món ăn nào</p>
+                <a href="restaurants.php" class="btn btn-primary">
+                    <i class="fas fa-utensils me-2"></i>Khám phá nhà hàng
+                </a>
             </div>
         </div>
     </div>
@@ -173,40 +261,166 @@ $orders = mysqli_stmt_get_result($stmt);
     </footer>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="assets/js/main.js"></script>
+    <script>
+        let orders = [];
+
+        // Initialize orders on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            loadOrders();
+            updateCartCount();
+        });
+
+        function loadOrders() {
+            // Get orders from localStorage
+            orders = JSON.parse(localStorage.getItem('orders')) || [];
+            
+            if (orders.length === 0) {
+                showEmptyOrders();
+            } else {
+                displayOrders();
+            }
+        }
+
+        function displayOrders() {
+            // Hide loading and empty states
+            document.getElementById('loadingState').style.display = 'none';
+            document.getElementById('emptyOrders').style.display = 'none';
+            document.getElementById('ordersContainer').style.display = 'block';
+
+            // Sort orders by creation date (newest first)
+            orders.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+            let ordersHtml = '';
+            orders.forEach(order => {
+                ordersHtml += createOrderCard(order);
+            });
+
+            document.getElementById('ordersContainer').innerHTML = ordersHtml;
+        }
+
+        function createOrderCard(order) {
+            const orderDate = new Date(order.created_at);
+            const statusText = getStatusText(order.status);
+            const statusClass = getStatusClass(order.status);
+            
+            return `
+                <div class="order-card">
+                    <div class="order-header">
+                        <div class="row align-items-center">
+                            <div class="col-md-6">
+                                <h6 class="mb-1">
+                                    <i class="fas fa-receipt me-2"></i>Đơn hàng #${order.id}
+                                </h6>
+                                <small>Đặt lúc: ${orderDate.toLocaleString('vi-VN')}</small>
+                            </div>
+                            <div class="col-md-6 text-md-end">
+                                <span class="order-status ${statusClass}">${statusText}</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="order-items">
+                        <h6 class="mb-3">
+                            <i class="fas fa-store me-2 text-primary"></i>${order.restaurant_name}
+                        </h6>
+                        
+                        ${order.items.map(item => `
+                            <div class="order-item">
+                                <img src="${item.image || 'assets/images/default-food.jpg'}" 
+                                     class="order-item-image" 
+                                     alt="${item.name}"
+                                     onerror="this.src='assets/images/default-food.jpg'">
+                                <div class="flex-grow-1">
+                                    <h6 class="mb-1">${item.name}</h6>
+                                    <small class="text-muted">Số lượng: ${item.quantity}</small>
+                                </div>
+                                <div class="text-end">
+                                    <strong>${(item.price * item.quantity).toLocaleString()} ₫</strong>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                    
+                    <div class="order-summary">
+                        <div class="row">
+                            <div class="col-md-8">
+                                <div class="order-timeline">
+                                    <div class="timeline-item active">
+                                        <strong>Đơn hàng đã được xác nhận</strong>
+                                        <br><small class="text-muted">${orderDate.toLocaleString('vi-VN')}</small>
+                                    </div>
+                                    <div class="timeline-item">
+                                        <strong>Nhà hàng đang chuẩn bị</strong>
+                                        <br><small class="text-muted">Dự kiến: ${order.delivery_time}</small>
+                                    </div>
+                                    <div class="timeline-item">
+                                        <strong>Đang giao hàng</strong>
+                                        <br><small class="text-muted">Shipper đang đến</small>
+                                    </div>
+                                    <div class="timeline-item">
+                                        <strong>Giao hàng thành công</strong>
+                                        <br><small class="text-muted">Đã hoàn thành</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="text-end">
+                                    <div class="mb-2">
+                                        <small class="text-muted">Tạm tính:</small>
+                                        <br><strong>${order.subtotal.toLocaleString()} ₫</strong>
+                                    </div>
+                                    <div class="mb-2">
+                                        <small class="text-muted">Thuế VAT:</small>
+                                        <br><strong>${order.vat.toLocaleString()} ₫</strong>
+                                    </div>
+                                    <hr>
+                                    <div class="mb-2">
+                                        <strong class="fs-5">Tổng cộng:</strong>
+                                        <br><strong class="text-primary fs-5">${order.total.toLocaleString()} ₫</strong>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function getStatusText(status) {
+            const statusMap = {
+                'pending': 'Chờ xác nhận',
+                'confirmed': 'Đã xác nhận',
+                'preparing': 'Đang chuẩn bị',
+                'delivering': 'Đang giao hàng',
+                'delivered': 'Đã giao hàng',
+                'cancelled': 'Đã hủy'
+            };
+            return statusMap[status] || 'Chờ xác nhận';
+        }
+
+        function getStatusClass(status) {
+            const classMap = {
+                'pending': 'status-pending',
+                'confirmed': 'status-confirmed',
+                'preparing': 'status-preparing',
+                'delivering': 'status-delivering',
+                'delivered': 'status-delivered',
+                'cancelled': 'status-cancelled'
+            };
+            return classMap[status] || 'status-pending';
+        }
+
+        function showEmptyOrders() {
+            document.getElementById('loadingState').style.display = 'none';
+            document.getElementById('ordersContainer').style.display = 'none';
+            document.getElementById('emptyOrders').style.display = 'block';
+        }
+
+        function updateCartCount() {
+            const cart = JSON.parse(localStorage.getItem('cart')) || [];
+            const totalItems = cart.reduce((total, item) => total + item.quantity, 0);
+            document.getElementById('cart-count').textContent = totalItems;
+        }
+    </script>
 </body>
 </html>
-
-<?php
-function getStatusColor($status) {
-    switch ($status) {
-        case 'pending': return 'warning';
-        case 'confirmed': return 'info';
-        case 'preparing': return 'primary';
-        case 'out_for_delivery': return 'info';
-        case 'delivered': return 'success';
-        case 'cancelled': return 'danger';
-        default: return 'secondary';
-    }
-}
-
-function getStatusText($status) {
-    switch ($status) {
-        case 'pending': return 'Chờ xác nhận';
-        case 'confirmed': return 'Đã xác nhận';
-        case 'preparing': return 'Đang chuẩn bị';
-        case 'out_for_delivery': return 'Đang giao hàng';
-        case 'delivered': return 'Đã giao hàng';
-        case 'cancelled': return 'Đã hủy';
-        default: return 'Không xác định';
-    }
-}
-
-function getPaymentMethodText($method) {
-    switch ($method) {
-        case 'cash': return 'Tiền mặt';
-        case 'bank_transfer': return 'Chuyển khoản';
-        default: return 'Không xác định';
-    }
-}
-?>

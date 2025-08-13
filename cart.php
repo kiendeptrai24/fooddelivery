@@ -113,6 +113,61 @@ $restaurant_id = 0;
             width: 3rem;
             height: 3rem;
         }
+        
+        /* Order Confirmation Modal Styles */
+        .modal-lg {
+            max-width: 800px;
+        }
+        
+        .restaurant-info {
+            background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+            padding: 1rem;
+            border-radius: 8px;
+            border-left: 4px solid #007bff;
+        }
+        
+        .order-items .row {
+            margin: 0;
+        }
+        
+        .order-items .row:last-child {
+            border-bottom: none !important;
+        }
+        
+        .order-summary {
+            background: #f8f9fa;
+            padding: 1rem;
+            border-radius: 8px;
+        }
+        
+        .delivery-info {
+            border-left: 4px solid #28a745;
+        }
+        
+        .modal-footer .btn {
+            min-width: 120px;
+        }
+        
+        .modal-body {
+            max-height: 70vh;
+            overflow-y: auto;
+        }
+        
+        /* Loading animation for confirm button */
+        .btn:disabled {
+            cursor: not-allowed;
+        }
+        
+        /* Success animation */
+        @keyframes successPulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+        
+        .success-animation {
+            animation: successPulse 0.5s ease-in-out;
+        }
     </style>
 </head>
 <body>
@@ -230,7 +285,7 @@ $restaurant_id = 0;
                             
                             <div class="d-grid gap-2">
                                 <button class="btn btn-primary btn-lg" id="checkoutBtn" onclick="proceedToCheckout()">
-                                    <i class="fas fa-credit-card me-2"></i>Tiến hành đặt hàng
+                                    <i class="fas fa-receipt me-2"></i>Tiến hành đặt hàng
                                 </button>
                                 <a href="restaurants.php" class="btn btn-outline-primary">
                                     <i class="fas fa-plus me-2"></i>Thêm món
@@ -587,8 +642,115 @@ $restaurant_id = 0;
                 return;
             }
             
-            // Redirect to checkout
-            window.location.href = 'checkout.php';
+            // Show order confirmation modal
+            showOrderConfirmation();
+        }
+
+        function showOrderConfirmation() {
+            // Populate modal with order details
+            const restaurantId = cart[0].restaurant_id;
+            const restaurantName = cart[0].restaurant_name;
+            
+            // Update restaurant info
+            document.getElementById('modalRestaurantName').textContent = restaurantName;
+            document.getElementById('modalRestaurantAddress').textContent = 'Địa chỉ giao hàng sẽ được cập nhật';
+            
+            // Populate order items
+            let orderItemsHtml = '';
+            cart.forEach(item => {
+                orderItemsHtml += `
+                    <div class="row align-items-center py-2 border-bottom">
+                        <div class="col-md-6">
+                            <div class="d-flex align-items-center">
+                                <img src="${item.image || 'assets/images/default-food.jpg'}" 
+                                     class="rounded me-3" 
+                                     style="width: 50px; height: 50px; object-fit: cover;"
+                                     alt="${item.name}"
+                                     onerror="this.src='assets/images/default-food.jpg'">
+                                <div>
+                                    <h6 class="mb-1">${item.name}</h6>
+                                    <small class="text-muted">${item.description || 'Không có mô tả'}</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-2 text-center">
+                            <span class="badge bg-secondary">x${item.quantity}</span>
+                        </div>
+                        <div class="col-md-2 text-center">
+                            <span class="fw-bold">${item.price.toLocaleString()} ₫</span>
+                        </div>
+                        <div class="col-md-2 text-end">
+                            <span class="fw-bold text-primary">${(item.price * item.quantity).toLocaleString()} ₫</span>
+                        </div>
+                    </div>
+                `;
+            });
+            document.getElementById('modalOrderItems').innerHTML = orderItemsHtml;
+            
+            // Calculate and update totals
+            const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+            const vat = Math.round(subtotal * 0.1); // 10% VAT
+            const total = subtotal + vat;
+            
+            document.getElementById('modalSubtotal').textContent = `${subtotal.toLocaleString()} ₫`;
+            document.getElementById('modalVAT').textContent = `${vat.toLocaleString()} ₫`;
+            document.getElementById('modalTotal').textContent = `${total.toLocaleString()} ₫`;
+            
+            // Show modal
+            const modal = new bootstrap.Modal(document.getElementById('orderConfirmationModal'));
+            modal.show();
+        }
+
+        function confirmOrder() {
+            // Show loading state
+            const confirmBtn = document.querySelector('#orderConfirmationModal .btn-primary');
+            const originalText = confirmBtn.innerHTML;
+            confirmBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Đang xử lý...';
+            confirmBtn.disabled = true;
+            
+            // Simulate order processing (in real app, this would be an API call)
+            setTimeout(() => {
+                // Create order object
+                const order = {
+                    id: 'ORD' + Date.now(),
+                    user_id: <?php echo $_SESSION['user_id']; ?>,
+                    restaurant_id: cart[0].restaurant_id,
+                    restaurant_name: cart[0].restaurant_name,
+                    items: cart,
+                    subtotal: cart.reduce((sum, item) => sum + (item.price * item.quantity), 0),
+                    vat: Math.round(cart.reduce((sum, item) => sum + (item.price * item.quantity), 0) * 0.1),
+                    total: Math.round(cart.reduce((sum, item) => sum + (item.price * item.quantity), 0) * 1.1),
+                    status: 'pending',
+                    created_at: new Date().toISOString(),
+                    delivery_time: '30-45 phút'
+                };
+                
+                // Save order to localStorage (in real app, this would go to database)
+                const orders = JSON.parse(localStorage.getItem('orders')) || [];
+                orders.push(order);
+                localStorage.setItem('orders', JSON.stringify(orders));
+                
+                // Clear cart
+                cart = [];
+                localStorage.removeItem('cart');
+                
+                // Update UI
+                updateCartCount();
+                showEmptyCart();
+                
+                // Hide modal
+                const modal = bootstrap.Modal.getInstance(document.getElementById('orderConfirmationModal'));
+                modal.hide();
+                
+                // Show success message
+                showToast('Đặt hàng thành công! Đơn hàng của bạn đã được xác nhận.');
+                
+                // Redirect to orders page after a short delay
+                setTimeout(() => {
+                    window.location.href = 'orders.php';
+                }, 2000);
+                
+            }, 1500);
         }
 
         function showToast(message) {
