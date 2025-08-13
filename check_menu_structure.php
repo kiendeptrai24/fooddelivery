@@ -73,3 +73,4 @@ if ($conn) {
 
 echo "<br><a href='restaurants.php'>← Quay lại trang nhà hàng</a>";
 ?>
+

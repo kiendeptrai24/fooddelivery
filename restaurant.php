@@ -151,6 +151,185 @@ if (mysqli_num_rows($check_category_result) > 0) {
             background-color: #007bff;
             border-color: #007bff;
         }
+        
+        /* Floating Cart Styles */
+        .floating-cart {
+            position: fixed;
+            top: 100px;
+            right: 20px;
+            width: 350px;
+            max-height: 500px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 5px 25px rgba(0,0,0,0.15);
+            z-index: 1000;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+        
+        .floating-cart.collapsed {
+            width: 60px;
+            height: 60px;
+        }
+        
+        .cart-header {
+            background: linear-gradient(135deg, #007bff, #0056b3);
+            color: white;
+            padding: 15px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .cart-header.collapsed {
+            justify-content: center;
+        }
+        
+        .cart-title {
+            font-weight: bold;
+            font-size: 1.1rem;
+        }
+        
+        .cart-toggle {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 1.2rem;
+            cursor: pointer;
+        }
+        
+        .cart-body {
+            padding: 15px;
+            max-height: 350px;
+            overflow-y: auto;
+        }
+        
+        .cart-item {
+            display: flex;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .cart-item:last-child {
+            border-bottom: none;
+        }
+        
+        .cart-item-info {
+            flex: 1;
+            margin-left: 10px;
+        }
+        
+        .cart-item-name {
+            font-weight: 500;
+            margin-bottom: 5px;
+        }
+        
+        .cart-item-price {
+            color: #28a745;
+            font-weight: bold;
+        }
+        
+        .cart-item-quantity {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .cart-quantity-btn {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            border: 1px solid #dee2e6;
+            background: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        
+        .cart-quantity-input {
+            width: 40px;
+            text-align: center;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 2px;
+            font-size: 12px;
+        }
+        
+        .cart-footer {
+            padding: 15px;
+            background: #f8f9fa;
+            border-top: 1px solid #dee2e6;
+        }
+        
+        .cart-total {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            font-weight: bold;
+            font-size: 1.1rem;
+        }
+        
+        .cart-actions {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .cart-actions button {
+            flex: 1;
+        }
+        
+        .cart-empty {
+            text-align: center;
+            padding: 30px 15px;
+            color: #6c757d;
+        }
+        
+        .cart-empty i {
+            font-size: 3rem;
+            margin-bottom: 15px;
+            opacity: 0.5;
+        }
+        
+        .restaurant-warning {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            color: #856404;
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+            font-size: 0.9rem;
+        }
+        
+        .cart-badge {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            background: #dc3545;
+            color: white;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        
+        @media (max-width: 768px) {
+            .floating-cart {
+                position: fixed;
+                bottom: 20px;
+                right: 20px;
+                top: auto;
+                width: 300px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -325,6 +504,37 @@ if (mysqli_num_rows($check_category_result) > 0) {
         <?php endif; ?>
     </div>
 
+    <!-- Floating Cart -->
+    <div class="floating-cart" id="floatingCart">
+        <div class="cart-header" onclick="toggleCart()">
+            <span class="cart-title">Giỏ hàng</span>
+            <button class="cart-toggle" onclick="event.stopPropagation(); toggleCart()">
+                <i class="fas fa-chevron-right"></i>
+            </button>
+            <div class="cart-badge" id="cartBadge">0</div>
+        </div>
+        <div class="cart-body" id="cartBody">
+            <div class="cart-empty">
+                <i class="fas fa-shopping-cart"></i>
+                <p>Giỏ hàng của bạn đang trống.</p>
+                <a href="restaurants.php" class="btn btn-primary">
+                    <i class="fas fa-utensils me-2"></i>Bắt đầu đặt hàng
+                </a>
+            </div>
+        </div>
+        <div class="cart-footer">
+            <div class="cart-total">
+                <span>Tổng tiền:</span>
+                <span id="cartTotal">0đ</span>
+            </div>
+            <div class="cart-actions">
+                <a href="cart.php" class="btn btn-outline-primary">Xem giỏ hàng</a>
+                <button class="btn btn-outline-danger" onclick="clearCart()">Xóa giỏ hàng</button>
+                <button class="btn btn-success" id="checkoutBtn">Đặt hàng</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Footer -->
     <footer class="bg-dark text-white py-4 mt-5">
         <div class="container">
@@ -393,12 +603,24 @@ if (mysqli_num_rows($check_category_result) > 0) {
             input.value = newValue;
         }
 
-        // Add to cart functionality
+                // Add to cart functionality
         function addToCart(itemId, itemName, itemPrice) {
             const quantity = parseInt(document.getElementById(`quantity-${itemId}`).value);
             
             // Get current cart from localStorage
             let cart = JSON.parse(localStorage.getItem('cart')) || [];
+            
+            // Check if cart has items from different restaurant
+            if (cart.length > 0) {
+                const firstItem = cart[0];
+                if (firstItem.restaurant_id !== <?php echo $restaurant_id; ?>) {
+                    if (confirm('Giỏ hàng của bạn có món ăn từ nhà hàng khác. Bạn có muốn xóa giỏ hàng cũ và thêm món ăn mới không?')) {
+                        cart = []; // Clear cart
+                    } else {
+                        return; // User cancelled
+                    }
+                }
+            }
             
             // Check if item already exists in cart
             const existingItemIndex = cart.findIndex(item => item.id === itemId);
@@ -431,6 +653,9 @@ if (mysqli_num_rows($check_category_result) > 0) {
             
             // Reset quantity to 1
             document.getElementById(`quantity-${itemId}`).value = 1;
+            
+            // Update floating cart
+            updateFloatingCart();
         }
 
         // Update cart count in navigation
@@ -438,11 +663,188 @@ if (mysqli_num_rows($check_category_result) > 0) {
             const cart = JSON.parse(localStorage.getItem('cart')) || [];
             const totalItems = cart.reduce((total, item) => total + item.quantity, 0);
             document.getElementById('cart-count').textContent = totalItems;
+            
+            // Update floating cart badge
+            const cartBadge = document.getElementById('cartBadge');
+            if (cartBadge) {
+                cartBadge.textContent = totalItems;
+                cartBadge.style.display = totalItems > 0 ? 'flex' : 'none';
+            }
         }
 
         // Initialize cart count on page load
         document.addEventListener('DOMContentLoaded', function() {
             updateCartCount();
+            updateFloatingCart(); // Initialize floating cart on page load
+        });
+
+        // Floating Cart functionality
+        const floatingCart = document.getElementById('floatingCart');
+        const cartBody = document.getElementById('cartBody');
+        const cartToggle = floatingCart.querySelector('.cart-toggle');
+        const cartTitle = floatingCart.querySelector('.cart-title');
+
+        function toggleCart() {
+            floatingCart.classList.toggle('collapsed');
+            if (floatingCart.classList.contains('collapsed')) {
+                cartToggle.innerHTML = '<i class="fas fa-shopping-cart"></i>';
+                cartTitle.style.display = 'none';
+                cartBody.style.display = 'none';
+                floatingCart.querySelector('.cart-footer').style.display = 'none';
+            } else {
+                cartToggle.innerHTML = '<i class="fas fa-chevron-right"></i>';
+                cartTitle.style.display = 'block';
+                cartBody.style.display = 'block';
+                floatingCart.querySelector('.cart-footer').style.display = 'block';
+            }
+        }
+
+        function updateFloatingCart() {
+            const cart = JSON.parse(localStorage.getItem('cart')) || [];
+            const total = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+            document.getElementById('cartTotal').textContent = `${total.toLocaleString()}đ`;
+
+            if (cart.length === 0) {
+                cartBody.innerHTML = `
+                    <div class="cart-empty">
+                        <i class="fas fa-shopping-cart"></i>
+                        <p>Giỏ hàng của bạn đang trống.</p>
+                        <a href="restaurants.php" class="btn btn-primary">
+                            <i class="fas fa-utensils me-2"></i>Bắt đầu đặt hàng
+                        </a>
+                    </div>
+                `;
+                document.getElementById('checkoutBtn').style.display = 'none';
+            } else {
+                let cartHtml = '';
+                
+                // Check if all items are from the same restaurant
+                const currentRestaurantId = <?php echo $restaurant_id; ?>;
+                const hasDifferentRestaurant = cart.some(item => item.restaurant_id !== currentRestaurantId);
+                
+                if (hasDifferentRestaurant) {
+                    cartHtml += `
+                        <div class="restaurant-warning">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            Giỏ hàng có món ăn từ nhà hàng khác. Vui lòng xóa giỏ hàng cũ trước khi thêm món mới.
+                        </div>
+                    `;
+                }
+                
+                cart.forEach(item => {
+                    const isCurrentRestaurant = item.restaurant_id === currentRestaurantId;
+                    cartHtml += `
+                        <div class="cart-item ${!isCurrentRestaurant ? 'opacity-50' : ''}">
+                            <div class="cart-item-info">
+                                <div class="cart-item-name">${item.name}</div>
+                                <div class="cart-item-price">${(item.price * item.quantity).toLocaleString()}đ</div>
+                                ${!isCurrentRestaurant ? `<small class="text-muted">${item.restaurant_name}</small>` : ''}
+                            </div>
+                            <div class="cart-item-quantity">
+                                <button class="cart-quantity-btn" onclick="changeFloatingCartQuantity(${item.id}, -1)" ${!isCurrentRestaurant ? 'disabled' : ''}>-</button>
+                                <input type="number" class="cart-quantity-input" value="${item.quantity}" min="1" max="99" onchange="updateCartItemQuantity(${item.id}, this.value)" ${!isCurrentRestaurant ? 'disabled' : ''}>
+                                <button class="cart-quantity-btn" onclick="changeFloatingCartQuantity(${item.id}, 1)" ${!isCurrentRestaurant ? 'disabled' : ''}>+</button>
+                                <button class="cart-quantity-btn text-danger" onclick="removeFromCart(${item.id})" title="Xóa">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                cartBody.innerHTML = cartHtml;
+                document.getElementById('checkoutBtn').style.display = 'block';
+            }
+        }
+
+        function changeFloatingCartQuantity(itemId, change) {
+            const cart = JSON.parse(localStorage.getItem('cart')) || [];
+            const itemIndex = cart.findIndex(item => item.id === itemId);
+            
+            if (itemIndex !== -1) {
+                let newQuantity = cart[itemIndex].quantity + change;
+                if (newQuantity < 1) newQuantity = 1;
+                if (newQuantity > 99) newQuantity = 99;
+                
+                cart[itemIndex].quantity = newQuantity;
+                localStorage.setItem('cart', JSON.stringify(cart));
+                
+                updateCartCount();
+                updateFloatingCart();
+            }
+        }
+
+        function updateCartItemQuantity(itemId, newQuantity) {
+            const cart = JSON.parse(localStorage.getItem('cart')) || [];
+            const itemIndex = cart.findIndex(item => item.id === itemId);
+            
+            if (itemIndex !== -1) {
+                newQuantity = parseInt(newQuantity);
+                if (newQuantity < 1) newQuantity = 1;
+                if (newQuantity > 99) newQuantity = 99;
+                
+                cart[itemIndex].quantity = newQuantity;
+                localStorage.setItem('cart', JSON.stringify(cart));
+                
+                updateCartCount();
+                updateFloatingCart();
+            }
+        }
+
+        function removeFromCart(itemId) {
+            const cart = JSON.parse(localStorage.getItem('cart')) || [];
+            const newCart = cart.filter(item => item.id !== itemId);
+            localStorage.setItem('cart', JSON.stringify(newCart));
+            
+            updateCartCount();
+            updateFloatingCart();
+            
+            // Show success message
+            document.getElementById('toastMessage').textContent = 'Đã xóa món ăn khỏi giỏ hàng!';
+            const toast = new bootstrap.Toast(document.getElementById('successToast'));
+            toast.show();
+        }
+
+        function clearCart() {
+            if (confirm('Bạn có chắc chắn muốn xóa toàn bộ giỏ hàng?')) {
+                localStorage.removeItem('cart');
+                updateCartCount();
+                updateFloatingCart();
+                
+                // Show success message
+                document.getElementById('toastMessage').textContent = 'Đã xóa toàn bộ giỏ hàng!';
+                const toast = new bootstrap.Toast(document.getElementById('successToast'));
+                toast.show();
+            }
+        }
+
+        // Checkout button functionality
+        document.getElementById('checkoutBtn').addEventListener('click', function(event) {
+            event.preventDefault();
+            const cart = JSON.parse(localStorage.getItem('cart')) || [];
+            if (cart.length === 0) {
+                alert('Giỏ hàng của bạn đang trống. Vui lòng thêm món ăn vào giỏ hàng.');
+                return;
+            }
+            
+            // Check if all items are from the same restaurant
+            const currentRestaurantId = <?php echo $restaurant_id; ?>;
+            const hasDifferentRestaurant = cart.some(item => item.restaurant_id !== currentRestaurantId);
+            
+            if (hasDifferentRestaurant) {
+                alert('Giỏ hàng của bạn có món ăn từ nhà hàng khác. Vui lòng xóa giỏ hàng cũ trước khi đặt hàng.');
+                return;
+            }
+            
+            // Check if user is logged in
+            <?php if (!isset($_SESSION['user_id'])): ?>
+                alert('Vui lòng đăng nhập để đặt hàng.');
+                window.location.href = 'login.php';
+                return;
+            <?php endif; ?>
+            
+            // Redirect to checkout page
+            window.location.href = 'checkout.php';
         });
     </script>
 </body>
