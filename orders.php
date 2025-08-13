@@ -8,8 +8,44 @@ if (!isset($_SESSION['user_id'])) {
     exit();
 }
 
-// Get orders from localStorage (will be handled by JavaScript)
-$orders = [];
+// Fetch orders from DB
+$orders_sql = "SELECT o.*, r.name AS restaurant_name 
+               FROM orders o 
+               JOIN restaurants r ON o.restaurant_id = r.id 
+               WHERE o.user_id = ? 
+               ORDER BY o.created_at DESC";
+$orders_stmt = mysqli_prepare($conn, $orders_sql);
+mysqli_stmt_bind_param($orders_stmt, 'i', $_SESSION['user_id']);
+mysqli_stmt_execute($orders_stmt);
+$orders_result = mysqli_stmt_get_result($orders_stmt);
+
+// Preload order items grouped by order
+$order_id_to_items = [];
+if ($orders_result) {
+    $order_ids = [];
+    while ($o = mysqli_fetch_assoc($orders_result)) {
+        $order_ids[] = (int)$o['id'];
+    }
+    // Rewind result set
+    mysqli_data_seek($orders_result, 0);
+    if (!empty($order_ids)) {
+        $in_clause = implode(',', array_fill(0, count($order_ids), '?'));
+        $types = str_repeat('i', count($order_ids));
+        $items_sql = "SELECT oi.*, mi.name, mi.image 
+                      FROM order_items oi 
+                      JOIN menu_items mi ON oi.menu_item_id = mi.id 
+                      WHERE oi.order_id IN ($in_clause)";
+        $items_stmt = mysqli_prepare($conn, $items_sql);
+        mysqli_stmt_bind_param($items_stmt, $types, ...$order_ids);
+        mysqli_stmt_execute($items_stmt);
+        $items_res = mysqli_stmt_get_result($items_stmt);
+        while ($it = mysqli_fetch_assoc($items_res)) {
+            $oid = (int)$it['order_id'];
+            if (!isset($order_id_to_items[$oid])) $order_id_to_items[$oid] = [];
+            $order_id_to_items[$oid][] = $it;
+        }
+    }
+}
 ?>
 <!DOCTYPE html>
 <html lang="vi">
@@ -219,21 +255,7 @@ $orders = [];
 
     <!-- Orders Content -->
     <div class="container mt-4">
-        <!-- Loading State -->
-        <div id="loadingState" class="loading">
-            <div class="spinner-border text-primary" role="status">
-                <span class="visually-hidden">Đang tải...</span>
-            </div>
-            <p class="mt-2">Đang tải đơn hàng...</p>
-        </div>
-
-        <!-- Orders Container -->
-        <div id="ordersContainer" style="display: none;">
-            <!-- Orders will be populated here -->
-        </div>
-
-        <!-- Empty Orders State -->
-        <div id="emptyOrders" style="display: none;">
+        <?php if (mysqli_num_rows($orders_result) === 0): ?>
             <div class="empty-orders">
                 <i class="fas fa-clipboard-list"></i>
                 <h4 class="text-muted">Chưa có đơn hàng nào</h4>
@@ -242,7 +264,96 @@ $orders = [];
                     <i class="fas fa-utensils me-2"></i>Khám phá nhà hàng
                 </a>
             </div>
-        </div>
+        <?php else: ?>
+            <?php while ($order = mysqli_fetch_assoc($orders_result)): ?>
+                <div class="order-card">
+                    <div class="order-header">
+                        <div class="row align-items-center">
+                            <div class="col-md-6">
+                                <h6 class="mb-1">
+                                    <i class="fas fa-receipt me-2"></i>Đơn hàng #<?php echo (int)$order['id']; ?>
+                                </h6>
+                                <small>Đặt lúc: <?php echo date('d/m/Y H:i', strtotime($order['created_at'])); ?></small>
+                            </div>
+                            <div class="col-md-6 text-md-end">
+                                <?php
+                                $status_labels = [
+                                    'pending' => 'status-pending',
+                                    'confirmed' => 'status-confirmed',
+                                    'preparing' => 'status-preparing',
+                                    'delivering' => 'status-delivering',
+                                    'delivered' => 'status-delivered',
+                                    'cancelled' => 'status-cancelled'
+                                ];
+                                $label_class = $status_labels[$order['status']] ?? 'status-pending';
+                                $status_text = [
+                                    'pending' => 'Chờ xác nhận',
+                                    'confirmed' => 'Đã xác nhận',
+                                    'preparing' => 'Đang chuẩn bị',
+                                    'delivering' => 'Đang giao hàng',
+                                    'delivered' => 'Đã giao hàng',
+                                    'cancelled' => 'Đã hủy'
+                                ][$order['status']] ?? 'Chờ xác nhận';
+                                ?>
+                                <span class="order-status <?php echo $label_class; ?>"><?php echo $status_text; ?></span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="order-items">
+                        <h6 class="mb-3">
+                            <i class="fas fa-store me-2 text-primary"></i><?php echo htmlspecialchars($order['restaurant_name']); ?>
+                        </h6>
+                        <?php foreach ($order_id_to_items[(int)$order['id']] ?? [] as $item): ?>
+                            <div class="order-item">
+                                <img src="<?php echo htmlspecialchars($item['image'] ?: 'assets/images/default-food.jpg'); ?>" 
+                                     class="order-item-image" 
+                                     alt="<?php echo htmlspecialchars($item['name']); ?>"
+                                     onerror="this.src='assets/images/default-food.jpg'">
+                                <div class="flex-grow-1">
+                                    <h6 class="mb-1"><?php echo htmlspecialchars($item['name']); ?></h6>
+                                    <small class="text-muted">Số lượng: <?php echo (int)$item['quantity']; ?></small>
+                                </div>
+                                <div class="text-end">
+                                    <strong><?php echo number_format($item['price'] * $item['quantity'], 0, ',', '.'); ?> ₫</strong>
+                                </div>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+                    <div class="order-summary">
+                        <div class="row">
+                            <div class="col-md-8">
+                                <div class="order-timeline">
+                                    <div class="timeline-item active">
+                                        <strong>Đơn hàng đã được xác nhận</strong>
+                                        <br><small class="text-muted"><?php echo date('d/m/Y H:i', strtotime($order['created_at'])); ?></small>
+                                    </div>
+                                    <div class="timeline-item">
+                                        <strong>Nhà hàng đang chuẩn bị</strong>
+                                        <br><small class="text-muted">Dự kiến: 30-45 phút</small>
+                                    </div>
+                                    <div class="timeline-item">
+                                        <strong>Đang giao hàng</strong>
+                                        <br><small class="text-muted">Shipper đang đến</small>
+                                    </div>
+                                    <div class="timeline-item">
+                                        <strong>Giao hàng thành công</strong>
+                                        <br><small class="text-muted">Đã hoàn thành</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="text-end">
+                                    <div class="mb-2">
+                                        <small class="text-muted">Tổng cộng:</small>
+                                        <br><strong class="text-primary fs-5"><?php echo number_format($order['total_amount'], 0, ',', '.'); ?> ₫</strong>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            <?php endwhile; ?>
+        <?php endif; ?>
     </div>
 
     <!-- Footer -->
@@ -261,166 +372,6 @@ $orders = [];
     </footer>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
-    <script>
-        let orders = [];
-
-        // Initialize orders on page load
-        document.addEventListener('DOMContentLoaded', function() {
-            loadOrders();
-            updateCartCount();
-        });
-
-        function loadOrders() {
-            // Get orders from localStorage
-            orders = JSON.parse(localStorage.getItem('orders')) || [];
-            
-            if (orders.length === 0) {
-                showEmptyOrders();
-            } else {
-                displayOrders();
-            }
-        }
-
-        function displayOrders() {
-            // Hide loading and empty states
-            document.getElementById('loadingState').style.display = 'none';
-            document.getElementById('emptyOrders').style.display = 'none';
-            document.getElementById('ordersContainer').style.display = 'block';
-
-            // Sort orders by creation date (newest first)
-            orders.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-
-            let ordersHtml = '';
-            orders.forEach(order => {
-                ordersHtml += createOrderCard(order);
-            });
-
-            document.getElementById('ordersContainer').innerHTML = ordersHtml;
-        }
-
-        function createOrderCard(order) {
-            const orderDate = new Date(order.created_at);
-            const statusText = getStatusText(order.status);
-            const statusClass = getStatusClass(order.status);
-            
-            return `
-                <div class="order-card">
-                    <div class="order-header">
-                        <div class="row align-items-center">
-                            <div class="col-md-6">
-                                <h6 class="mb-1">
-                                    <i class="fas fa-receipt me-2"></i>Đơn hàng #${order.id}
-                                </h6>
-                                <small>Đặt lúc: ${orderDate.toLocaleString('vi-VN')}</small>
-                            </div>
-                            <div class="col-md-6 text-md-end">
-                                <span class="order-status ${statusClass}">${statusText}</span>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="order-items">
-                        <h6 class="mb-3">
-                            <i class="fas fa-store me-2 text-primary"></i>${order.restaurant_name}
-                        </h6>
-                        
-                        ${order.items.map(item => `
-                            <div class="order-item">
-                                <img src="${item.image || 'assets/images/default-food.jpg'}" 
-                                     class="order-item-image" 
-                                     alt="${item.name}"
-                                     onerror="this.src='assets/images/default-food.jpg'">
-                                <div class="flex-grow-1">
-                                    <h6 class="mb-1">${item.name}</h6>
-                                    <small class="text-muted">Số lượng: ${item.quantity}</small>
-                                </div>
-                                <div class="text-end">
-                                    <strong>${(item.price * item.quantity).toLocaleString()} ₫</strong>
-                                </div>
-                            </div>
-                        `).join('')}
-                    </div>
-                    
-                    <div class="order-summary">
-                        <div class="row">
-                            <div class="col-md-8">
-                                <div class="order-timeline">
-                                    <div class="timeline-item active">
-                                        <strong>Đơn hàng đã được xác nhận</strong>
-                                        <br><small class="text-muted">${orderDate.toLocaleString('vi-VN')}</small>
-                                    </div>
-                                    <div class="timeline-item">
-                                        <strong>Nhà hàng đang chuẩn bị</strong>
-                                        <br><small class="text-muted">Dự kiến: ${order.delivery_time}</small>
-                                    </div>
-                                    <div class="timeline-item">
-                                        <strong>Đang giao hàng</strong>
-                                        <br><small class="text-muted">Shipper đang đến</small>
-                                    </div>
-                                    <div class="timeline-item">
-                                        <strong>Giao hàng thành công</strong>
-                                        <br><small class="text-muted">Đã hoàn thành</small>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-md-4">
-                                <div class="text-end">
-                                    <div class="mb-2">
-                                        <small class="text-muted">Tạm tính:</small>
-                                        <br><strong>${order.subtotal.toLocaleString()} ₫</strong>
-                                    </div>
-                                    <div class="mb-2">
-                                        <small class="text-muted">Thuế VAT:</small>
-                                        <br><strong>${order.vat.toLocaleString()} ₫</strong>
-                                    </div>
-                                    <hr>
-                                    <div class="mb-2">
-                                        <strong class="fs-5">Tổng cộng:</strong>
-                                        <br><strong class="text-primary fs-5">${order.total.toLocaleString()} ₫</strong>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            `;
-        }
-
-        function getStatusText(status) {
-            const statusMap = {
-                'pending': 'Chờ xác nhận',
-                'confirmed': 'Đã xác nhận',
-                'preparing': 'Đang chuẩn bị',
-                'delivering': 'Đang giao hàng',
-                'delivered': 'Đã giao hàng',
-                'cancelled': 'Đã hủy'
-            };
-            return statusMap[status] || 'Chờ xác nhận';
-        }
-
-        function getStatusClass(status) {
-            const classMap = {
-                'pending': 'status-pending',
-                'confirmed': 'status-confirmed',
-                'preparing': 'status-preparing',
-                'delivering': 'status-delivering',
-                'delivered': 'status-delivered',
-                'cancelled': 'status-cancelled'
-            };
-            return classMap[status] || 'status-pending';
-        }
-
-        function showEmptyOrders() {
-            document.getElementById('loadingState').style.display = 'none';
-            document.getElementById('ordersContainer').style.display = 'none';
-            document.getElementById('emptyOrders').style.display = 'block';
-        }
-
-        function updateCartCount() {
-            const cart = JSON.parse(localStorage.getItem('cart')) || [];
-            const totalItems = cart.reduce((total, item) => total + item.quantity, 0);
-            document.getElementById('cart-count').textContent = totalItems;
-        }
-    </script>
+    <script src="assets/js/main.js"></script>
 </body>
 </html>

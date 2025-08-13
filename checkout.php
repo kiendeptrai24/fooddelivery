@@ -61,7 +61,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         
         try {
             // Create order
-            $order_sql = "INSERT INTO orders (user_id, restaurant_id, total_amount, delivery_address, delivery_phone, payment_method, notes) VALUES (?, ?, ?, ?, ?, ?, ?)";
+            $order_sql = "INSERT INTO orders (user_id, restaurant_id, total, delivery_address, delivery_phone, payment_method, notes) VALUES (?, ?, ?, ?, ?, ?, ?)";
             $order_stmt = mysqli_prepare($conn, $order_sql);
             mysqli_stmt_bind_param($order_stmt, "iidssss", $_SESSION['user_id'], $restaurant_id, $total, $delivery_address, $delivery_phone, $payment_method, $notes);
             

@@ -132,7 +132,8 @@ function updateCartQuantity(cartItemId, newQuantity) {
                 // Update price
                 const priceElement = document.querySelector(`[data-cart-item-id="${cartItemId}"] .item-price`);
                 if (priceElement && data.item_price) {
-                    priceElement.textContent = formatPrice(data.item_price * newQuantity);
+                    const lineTotal = (data.item_price * newQuantity);
+                    priceElement.textContent = `${lineTotal.toLocaleString('vi-VN')} ₫`;
                 }
 
                 // Update total
@@ -156,10 +157,9 @@ function updateCartTotal() {
     let total = 0;
 
     cartItems.forEach(item => {
-        const quantity = parseInt(item.querySelector('input[type="number"]')?.value || 1);
         const priceText = item.querySelector('.item-price')?.textContent || '0';
-        const price = parseFloat(priceText.replace(/[^\d]/g, ''));
-        total += price * quantity;
+        const lineTotal = parseFloat(priceText.replace(/[^\d]/g, ''));
+        total += isNaN(lineTotal) ? 0 : lineTotal;
     });
 
     const totalElement = document.getElementById('cart-total');

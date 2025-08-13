@@ -475,7 +475,7 @@ if (mysqli_num_rows($check_category_result) > 0) {
                                             </div>
                                             
                                             <button class="btn btn-primary add-to-cart-btn w-100" 
-                                                    onclick="addToCart(<?php echo $item['id']; ?>, '<?php echo htmlspecialchars($item['name']); ?>', <?php echo $item['price']; ?>)">
+                                                    onclick="addToCart(<?php echo $item['id']; ?>, <?php echo $restaurant_id; ?>)">
                                                 <i class="fas fa-cart-plus me-2"></i>Thêm vào giỏ
                                             </button>
                                         <?php else: ?>
@@ -504,36 +504,7 @@ if (mysqli_num_rows($check_category_result) > 0) {
         <?php endif; ?>
     </div>
 
-    <!-- Floating Cart -->
-    <div class="floating-cart" id="floatingCart">
-        <div class="cart-header" onclick="toggleCart()">
-            <span class="cart-title">Giỏ hàng</span>
-            <button class="cart-toggle" onclick="event.stopPropagation(); toggleCart()">
-                <i class="fas fa-chevron-right"></i>
-            </button>
-            <div class="cart-badge" id="cartBadge">0</div>
-        </div>
-        <div class="cart-body" id="cartBody">
-            <div class="cart-empty">
-                <i class="fas fa-shopping-cart"></i>
-                <p>Giỏ hàng của bạn đang trống.</p>
-                <a href="restaurants.php" class="btn btn-primary">
-                    <i class="fas fa-utensils me-2"></i>Bắt đầu đặt hàng
-                </a>
-            </div>
-        </div>
-        <div class="cart-footer">
-            <div class="cart-total">
-                <span>Tổng tiền:</span>
-                <span id="cartTotal">0đ</span>
-            </div>
-            <div class="cart-actions">
-                <a href="cart.php" class="btn btn-outline-primary">Xem giỏ hàng</a>
-                <button class="btn btn-outline-danger" onclick="clearCart()">Xóa giỏ hàng</button>
-                <button class="btn btn-success" id="checkoutBtn">Đặt hàng</button>
-            </div>
-        </div>
-    </div>
+    
 
     <!-- Footer -->
     <footer class="bg-dark text-white py-4 mt-5">
@@ -565,287 +536,27 @@ if (mysqli_num_rows($check_category_result) > 0) {
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="assets/js/main.js"></script>
     <script>
         // Category filter functionality
         document.querySelectorAll('.filter-btn').forEach(btn => {
             btn.addEventListener('click', function() {
-                // Remove active class from all buttons
                 document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
-                // Add active class to clicked button
                 this.classList.add('active');
-                
                 const category = this.dataset.category;
-                
-                if (category === 'all') {
-                    // Show all categories
-                    document.querySelectorAll('.category-section').forEach(section => {
-                        section.style.display = 'block';
-                    });
-                } else {
-                    // Show only selected category
-                    document.querySelectorAll('.category-section').forEach(section => {
-                        if (section.dataset.category === category) {
-                            section.style.display = 'block';
-                        } else {
-                            section.style.display = 'none';
-                        }
-                    });
-                }
+                document.querySelectorAll('.category-section').forEach(section => {
+                    section.style.display = (category === 'all' || section.dataset.category === category) ? 'block' : 'none';
+                });
             });
         });
-
-        // Quantity control functions
+        // Quantity control for menu cards
         function changeQuantity(itemId, change) {
             const input = document.getElementById(`quantity-${itemId}`);
-            let newValue = parseInt(input.value) + change;
+            let newValue = parseInt(input.value || '1') + change;
             if (newValue < 1) newValue = 1;
             if (newValue > 99) newValue = 99;
             input.value = newValue;
         }
-
-                // Add to cart functionality
-        function addToCart(itemId, itemName, itemPrice) {
-            const quantity = parseInt(document.getElementById(`quantity-${itemId}`).value);
-            
-            // Get current cart from localStorage
-            let cart = JSON.parse(localStorage.getItem('cart')) || [];
-            
-            // Check if cart has items from different restaurant
-            if (cart.length > 0) {
-                const firstItem = cart[0];
-                if (firstItem.restaurant_id !== <?php echo $restaurant_id; ?>) {
-                    if (confirm('Giỏ hàng của bạn có món ăn từ nhà hàng khác. Bạn có muốn xóa giỏ hàng cũ và thêm món ăn mới không?')) {
-                        cart = []; // Clear cart
-                    } else {
-                        return; // User cancelled
-                    }
-                }
-            }
-            
-            // Check if item already exists in cart
-            const existingItemIndex = cart.findIndex(item => item.id === itemId);
-            
-            if (existingItemIndex !== -1) {
-                // Update quantity if item exists
-                cart[existingItemIndex].quantity += quantity;
-            } else {
-                // Add new item to cart
-                cart.push({
-                    id: itemId,
-                    name: itemName,
-                    price: itemPrice,
-                    quantity: quantity,
-                    restaurant_id: <?php echo $restaurant_id; ?>,
-                    restaurant_name: '<?php echo addslashes($restaurant['name']); ?>'
-                });
-            }
-            
-            // Save cart to localStorage
-            localStorage.setItem('cart', JSON.stringify(cart));
-            
-            // Update cart count in navigation
-            updateCartCount();
-            
-            // Show success message
-            document.getElementById('toastMessage').textContent = `Đã thêm ${quantity}x ${itemName} vào giỏ hàng!`;
-            const toast = new bootstrap.Toast(document.getElementById('successToast'));
-            toast.show();
-            
-            // Reset quantity to 1
-            document.getElementById(`quantity-${itemId}`).value = 1;
-            
-            // Update floating cart
-            updateFloatingCart();
-        }
-
-        // Update cart count in navigation
-        function updateCartCount() {
-            const cart = JSON.parse(localStorage.getItem('cart')) || [];
-            const totalItems = cart.reduce((total, item) => total + item.quantity, 0);
-            document.getElementById('cart-count').textContent = totalItems;
-            
-            // Update floating cart badge
-            const cartBadge = document.getElementById('cartBadge');
-            if (cartBadge) {
-                cartBadge.textContent = totalItems;
-                cartBadge.style.display = totalItems > 0 ? 'flex' : 'none';
-            }
-        }
-
-        // Initialize cart count on page load
-        document.addEventListener('DOMContentLoaded', function() {
-            updateCartCount();
-            updateFloatingCart(); // Initialize floating cart on page load
-        });
-
-        // Floating Cart functionality
-        const floatingCart = document.getElementById('floatingCart');
-        const cartBody = document.getElementById('cartBody');
-        const cartToggle = floatingCart.querySelector('.cart-toggle');
-        const cartTitle = floatingCart.querySelector('.cart-title');
-
-        function toggleCart() {
-            floatingCart.classList.toggle('collapsed');
-            if (floatingCart.classList.contains('collapsed')) {
-                cartToggle.innerHTML = '<i class="fas fa-shopping-cart"></i>';
-                cartTitle.style.display = 'none';
-                cartBody.style.display = 'none';
-                floatingCart.querySelector('.cart-footer').style.display = 'none';
-            } else {
-                cartToggle.innerHTML = '<i class="fas fa-chevron-right"></i>';
-                cartTitle.style.display = 'block';
-                cartBody.style.display = 'block';
-                floatingCart.querySelector('.cart-footer').style.display = 'block';
-            }
-        }
-
-        function updateFloatingCart() {
-            const cart = JSON.parse(localStorage.getItem('cart')) || [];
-            const total = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-            document.getElementById('cartTotal').textContent = `${total.toLocaleString()}đ`;
-
-            if (cart.length === 0) {
-                cartBody.innerHTML = `
-                    <div class="cart-empty">
-                        <i class="fas fa-shopping-cart"></i>
-                        <p>Giỏ hàng của bạn đang trống.</p>
-                        <a href="restaurants.php" class="btn btn-primary">
-                            <i class="fas fa-utensils me-2"></i>Bắt đầu đặt hàng
-                        </a>
-                    </div>
-                `;
-                document.getElementById('checkoutBtn').style.display = 'none';
-            } else {
-                let cartHtml = '';
-                
-                // Check if all items are from the same restaurant
-                const currentRestaurantId = <?php echo $restaurant_id; ?>;
-                const hasDifferentRestaurant = cart.some(item => item.restaurant_id !== currentRestaurantId);
-                
-                if (hasDifferentRestaurant) {
-                    cartHtml += `
-                        <div class="restaurant-warning">
-                            <i class="fas fa-exclamation-triangle me-2"></i>
-                            Giỏ hàng có món ăn từ nhà hàng khác. Vui lòng xóa giỏ hàng cũ trước khi thêm món mới.
-                        </div>
-                    `;
-                }
-                
-                cart.forEach(item => {
-                    const isCurrentRestaurant = item.restaurant_id === currentRestaurantId;
-                    cartHtml += `
-                        <div class="cart-item ${!isCurrentRestaurant ? 'opacity-50' : ''}">
-                            <div class="cart-item-info">
-                                <div class="cart-item-name">${item.name}</div>
-                                <div class="cart-item-price">${(item.price * item.quantity).toLocaleString()}đ</div>
-                                ${!isCurrentRestaurant ? `<small class="text-muted">${item.restaurant_name}</small>` : ''}
-                            </div>
-                            <div class="cart-item-quantity">
-                                <button class="cart-quantity-btn" onclick="changeFloatingCartQuantity(${item.id}, -1)" ${!isCurrentRestaurant ? 'disabled' : ''}>-</button>
-                                <input type="number" class="cart-quantity-input" value="${item.quantity}" min="1" max="99" onchange="updateCartItemQuantity(${item.id}, this.value)" ${!isCurrentRestaurant ? 'disabled' : ''}>
-                                <button class="cart-quantity-btn" onclick="changeFloatingCartQuantity(${item.id}, 1)" ${!isCurrentRestaurant ? 'disabled' : ''}>+</button>
-                                <button class="cart-quantity-btn text-danger" onclick="removeFromCart(${item.id})" title="Xóa">
-                                    <i class="fas fa-trash"></i>
-                                </button>
-                            </div>
-                        </div>
-                    `;
-                });
-                
-                cartBody.innerHTML = cartHtml;
-                document.getElementById('checkoutBtn').style.display = 'block';
-            }
-        }
-
-        function changeFloatingCartQuantity(itemId, change) {
-            const cart = JSON.parse(localStorage.getItem('cart')) || [];
-            const itemIndex = cart.findIndex(item => item.id === itemId);
-            
-            if (itemIndex !== -1) {
-                let newQuantity = cart[itemIndex].quantity + change;
-                if (newQuantity < 1) newQuantity = 1;
-                if (newQuantity > 99) newQuantity = 99;
-                
-                cart[itemIndex].quantity = newQuantity;
-                localStorage.setItem('cart', JSON.stringify(cart));
-                
-                updateCartCount();
-                updateFloatingCart();
-            }
-        }
-
-        function updateCartItemQuantity(itemId, newQuantity) {
-            const cart = JSON.parse(localStorage.getItem('cart')) || [];
-            const itemIndex = cart.findIndex(item => item.id === itemId);
-            
-            if (itemIndex !== -1) {
-                newQuantity = parseInt(newQuantity);
-                if (newQuantity < 1) newQuantity = 1;
-                if (newQuantity > 99) newQuantity = 99;
-                
-                cart[itemIndex].quantity = newQuantity;
-                localStorage.setItem('cart', JSON.stringify(cart));
-                
-                updateCartCount();
-                updateFloatingCart();
-            }
-        }
-
-        function removeFromCart(itemId) {
-            const cart = JSON.parse(localStorage.getItem('cart')) || [];
-            const newCart = cart.filter(item => item.id !== itemId);
-            localStorage.setItem('cart', JSON.stringify(newCart));
-            
-            updateCartCount();
-            updateFloatingCart();
-            
-            // Show success message
-            document.getElementById('toastMessage').textContent = 'Đã xóa món ăn khỏi giỏ hàng!';
-            const toast = new bootstrap.Toast(document.getElementById('successToast'));
-            toast.show();
-        }
-
-        function clearCart() {
-            if (confirm('Bạn có chắc chắn muốn xóa toàn bộ giỏ hàng?')) {
-                localStorage.removeItem('cart');
-                updateCartCount();
-                updateFloatingCart();
-                
-                // Show success message
-                document.getElementById('toastMessage').textContent = 'Đã xóa toàn bộ giỏ hàng!';
-                const toast = new bootstrap.Toast(document.getElementById('successToast'));
-                toast.show();
-            }
-        }
-
-        // Checkout button functionality
-        document.getElementById('checkoutBtn').addEventListener('click', function(event) {
-            event.preventDefault();
-            const cart = JSON.parse(localStorage.getItem('cart')) || [];
-            if (cart.length === 0) {
-                alert('Giỏ hàng của bạn đang trống. Vui lòng thêm món ăn vào giỏ hàng.');
-                return;
-            }
-            
-            // Check if all items are from the same restaurant
-            const currentRestaurantId = <?php echo $restaurant_id; ?>;
-            const hasDifferentRestaurant = cart.some(item => item.restaurant_id !== currentRestaurantId);
-            
-            if (hasDifferentRestaurant) {
-                alert('Giỏ hàng của bạn có món ăn từ nhà hàng khác. Vui lòng xóa giỏ hàng cũ trước khi đặt hàng.');
-                return;
-            }
-            
-            // Check if user is logged in
-            <?php if (!isset($_SESSION['user_id'])): ?>
-                alert('Vui lòng đăng nhập để đặt hàng.');
-                window.location.href = 'login.php';
-                return;
-            <?php endif; ?>
-            
-            // Redirect to checkout page
-            window.location.href = 'checkout.php';
-        });
     </script>
 </body>
 </html>

@@ -8,12 +8,33 @@ if (!isset($_SESSION['user_id'])) {
     exit();
 }
 
-// Get cart items from localStorage (will be handled by JavaScript)
+// Fetch cart items from database
+$sql = "SELECT c.id as cart_id, c.quantity, mi.id as menu_item_id, mi.name, mi.description, mi.price, mi.image, r.name as restaurant_name, r.id as restaurant_id 
+        FROM cart c 
+        JOIN menu_items mi ON c.menu_item_id = mi.id 
+        JOIN restaurants r ON c.restaurant_id = r.id 
+        WHERE c.user_id = ?";
+$stmt = mysqli_prepare($conn, $sql);
+mysqli_stmt_bind_param($stmt, "i", $_SESSION['user_id']);
+mysqli_stmt_execute($stmt);
+$cart_items_result = mysqli_stmt_get_result($stmt);
+
 $cart_items = [];
 $total = 0;
 $cart_count = 0;
 $restaurant_name = '';
 $restaurant_id = 0;
+$restaurant_ids = [];
+while ($row = mysqli_fetch_assoc($cart_items_result)) {
+    $cart_items[] = $row;
+    $total += $row['price'] * $row['quantity'];
+    $cart_count += $row['quantity'];
+    $restaurant_name = $row['restaurant_name'];
+    $restaurant_id = $row['restaurant_id'];
+    $restaurant_ids[$row['restaurant_id']] = true;
+}
+
+$multiple_restaurants = count($restaurant_ids) > 1;
 ?>
 <!DOCTYPE html>
 <html lang="vi">
@@ -234,27 +255,68 @@ $restaurant_id = 0;
 
     <!-- Cart Content -->
     <div class="container mt-4">
-        <!-- Loading State -->
-        <div id="loadingState" class="loading">
-            <div class="spinner-border text-primary" role="status">
-                <span class="visually-hidden">Đang tải...</span>
+        <?php if ($cart_count === 0): ?>
+            <div class="empty-cart">
+                <i class="fas fa-shopping-cart"></i>
+                <h4 class="text-muted">Giỏ hàng trống</h4>
+                <p class="text-muted">Bạn chưa có món ăn nào trong giỏ hàng</p>
+                <a href="restaurants.php" class="btn btn-primary">
+                    <i class="fas fa-utensils me-2"></i>Khám phá nhà hàng
+                </a>
             </div>
-            <p class="mt-2">Đang tải giỏ hàng...</p>
-        </div>
-
-        <!-- Cart Items Container -->
-        <div id="cartContainer" style="display: none;">
+        <?php else: ?>
             <div class="row">
                 <div class="col-lg-8">
                     <div class="card">
                         <div class="card-header bg-primary text-white">
                             <h5 class="mb-0">
                                 <i class="fas fa-store me-2"></i>
-                                <span id="restaurantName">Nhà hàng</span>
+                                <?php echo htmlspecialchars($restaurant_name); ?>
                             </h5>
                         </div>
                         <div class="card-body" id="cartItems">
-                            <!-- Cart items will be populated here -->
+                            <?php if ($multiple_restaurants): ?>
+                                <div class="restaurant-warning">
+                                    <i class="fas fa-exclamation-triangle me-2"></i>
+                                    <strong>Cảnh báo:</strong> Giỏ hàng của bạn có món ăn từ nhà hàng khác. Vui lòng xóa giỏ hàng cũ trước khi thêm món mới.
+                                </div>
+                            <?php endif; ?>
+                            <?php foreach ($cart_items as $item): ?>
+                                <div class="cart-item" data-cart-item-id="<?php echo $item['cart_id']; ?>">
+                                    <div class="row align-items-center">
+                                        <div class="col-md-2">
+                                            <img src="<?php echo htmlspecialchars($item['image'] ?: 'assets/images/default-food.jpg'); ?>" 
+                                                 class="cart-item-image" 
+                                                 alt="<?php echo htmlspecialchars($item['name']); ?>"
+                                                 onerror="this.src='assets/images/default-food.jpg'">
+                                        </div>
+                                        <div class="col-md-4">
+                                            <h6 class="mb-1"><?php echo htmlspecialchars($item['name']); ?></h6>
+                                            <small class="text-muted"><?php echo number_format($item['price'], 0, ',', '.'); ?> ₫</small>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <div class="quantity-controls">
+                                                <button class="quantity-btn" onclick="updateCartQuantity(<?php echo $item['cart_id']; ?>, Math.max(1, parseInt(this.nextElementSibling.value)-1))">
+                                                    <i class="fas fa-minus"></i>
+                                                </button>
+                                                <input type="number" class="quantity-input" value="<?php echo (int)$item['quantity']; ?>" 
+                                                       min="1" max="99" onchange="updateCartQuantity(<?php echo $item['cart_id']; ?>, this.value)">
+                                                <button class="quantity-btn" onclick="updateCartQuantity(<?php echo $item['cart_id']; ?>, Math.min(99, parseInt(this.previousElementSibling.value)+1))">
+                                                    <i class="fas fa-plus"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-2 text-center">
+                                            <strong class="text-primary item-price"><?php echo number_format($item['price'] * $item['quantity'], 0, ',', '.'); ?> ₫</strong>
+                                        </div>
+                                        <div class="col-md-1 text-end">
+                                            <button class="remove-btn" onclick="removeFromCart(<?php echo $item['cart_id']; ?>)" title="Xóa món">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            <?php endforeach; ?>
                         </div>
                     </div>
                 </div>
@@ -268,7 +330,7 @@ $restaurant_id = 0;
                             
                             <div class="d-flex justify-content-between mb-2">
                                 <span>Tạm tính:</span>
-                                <span id="subtotal">0 ₫</span>
+                                <span id="subtotal"><?php echo number_format($total, 0, ',', '.'); ?> ₫</span>
                             </div>
                             
                             <div class="d-flex justify-content-between mb-2">
@@ -280,19 +342,16 @@ $restaurant_id = 0;
                             
                             <div class="d-flex justify-content-between mb-3">
                                 <strong>Tổng cộng:</strong>
-                                <strong class="text-primary fs-5" id="totalAmount">0 ₫</strong>
+                                <strong class="text-primary fs-5" id="cart-total"><?php echo number_format($total, 0, ',', '.'); ?> ₫</strong>
                             </div>
                             
                             <div class="d-grid gap-2">
-                                <button class="btn btn-primary btn-lg" id="checkoutBtn" onclick="proceedToCheckout()">
+                                <a href="checkout.php" class="btn btn-primary btn-lg" id="checkout-btn" <?php echo $total <= 0 ? 'disabled' : ''; ?>>
                                     <i class="fas fa-receipt me-2"></i>Tiến hành đặt hàng
-                                </button>
+                                </a>
                                 <a href="restaurants.php" class="btn btn-outline-primary">
                                     <i class="fas fa-plus me-2"></i>Thêm món
                                 </a>
-                                <button class="btn btn-outline-danger" onclick="clearCart()">
-                                    <i class="fas fa-trash me-2"></i>Xóa giỏ hàng
-                                </button>
                             </div>
                             
                             <hr>
@@ -307,19 +366,7 @@ $restaurant_id = 0;
                     </div>
                 </div>
             </div>
-        </div>
-
-        <!-- Empty Cart State -->
-        <div id="emptyCart" style="display: none;">
-            <div class="empty-cart">
-                <i class="fas fa-shopping-cart"></i>
-                <h4 class="text-muted">Giỏ hàng trống</h4>
-                <p class="text-muted">Bạn chưa có món ăn nào trong giỏ hàng</p>
-                <a href="restaurants.php" class="btn btn-primary">
-                    <i class="fas fa-utensils me-2"></i>Khám phá nhà hàng
-                </a>
-            </div>
-        </div>
+        <?php endif; ?>
     </div>
 
     <!-- Success Toast -->
@@ -456,308 +503,6 @@ $restaurant_id = 0;
     </footer>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
-    <script>
-        // Cart management functions
-        let cart = [];
-
-        // Initialize cart on page load
-        document.addEventListener('DOMContentLoaded', function() {
-            loadCart();
-        });
-
-        function loadCart() {
-            // Get cart from localStorage
-            cart = JSON.parse(localStorage.getItem('cart')) || [];
-            
-            if (cart.length === 0) {
-                showEmptyCart();
-            } else {
-                displayCart();
-            }
-            
-            updateCartCount();
-        }
-
-        function displayCart() {
-            // Hide loading and empty states
-            document.getElementById('loadingState').style.display = 'none';
-            document.getElementById('emptyCart').style.display = 'none';
-            document.getElementById('cartContainer').style.display = 'block';
-
-            // Check if all items are from the same restaurant
-            const restaurantId = cart[0].restaurant_id;
-            const restaurantName = cart[0].restaurant_name;
-            const hasDifferentRestaurant = cart.some(item => item.restaurant_id !== restaurantId);
-
-            // Update restaurant name
-            document.getElementById('restaurantName').textContent = restaurantName;
-
-            // Show warning if different restaurants
-            let cartHtml = '';
-            if (hasDifferentRestaurant) {
-                cartHtml += `
-                    <div class="restaurant-warning">
-                        <i class="fas fa-exclamation-triangle me-2"></i>
-                        <strong>Cảnh báo:</strong> Giỏ hàng của bạn có món ăn từ nhà hàng khác. 
-                        Vui lòng xóa giỏ hàng cũ trước khi thêm món mới.
-                    </div>
-                `;
-            }
-
-            // Display cart items
-            cart.forEach(item => {
-                const isCurrentRestaurant = item.restaurant_id === restaurantId;
-                cartHtml += `
-                    <div class="cart-item ${!isCurrentRestaurant ? 'opacity-50' : ''}">
-                        <div class="row align-items-center">
-                            <div class="col-md-2">
-                                <img src="${item.image || 'assets/images/default-food.jpg'}" 
-                                     class="cart-item-image" 
-                                     alt="${item.name}"
-                                     onerror="this.src='assets/images/default-food.jpg'">
-                            </div>
-                            <div class="col-md-4">
-                                <h6 class="mb-1">${item.name}</h6>
-                                <p class="text-muted small mb-0">${item.description || 'Không có mô tả'}</p>
-                                <small class="text-muted">${item.price.toLocaleString()} ₫</small>
-                                ${!isCurrentRestaurant ? `<br><small class="text-warning">${item.restaurant_name}</small>` : ''}
-                            </div>
-                            <div class="col-md-3">
-                                <div class="quantity-controls">
-                                    <button class="quantity-btn" onclick="changeQuantity(${item.id}, -1)" ${!isCurrentRestaurant ? 'disabled' : ''}>
-                                        <i class="fas fa-minus"></i>
-                                    </button>
-                                    <input type="number" class="quantity-input" value="${item.quantity}" 
-                                           min="1" max="99" onchange="updateQuantity(${item.id}, this.value)" ${!isCurrentRestaurant ? 'disabled' : ''}>
-                                    <button class="quantity-btn" onclick="changeQuantity(${item.id}, 1)" ${!isCurrentRestaurant ? 'disabled' : ''}>
-                                        <i class="fas fa-plus"></i>
-                                    </button>
-                                </div>
-                            </div>
-                            <div class="col-md-2 text-center">
-                                <strong class="text-primary">${(item.price * item.quantity).toLocaleString()} ₫</strong>
-                            </div>
-                            <div class="col-md-1 text-end">
-                                <button class="remove-btn" onclick="removeItem(${item.id})" title="Xóa món">
-                                    <i class="fas fa-trash"></i>
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                `;
-            });
-
-            document.getElementById('cartItems').innerHTML = cartHtml;
-            updateTotals();
-        }
-
-        function showEmptyCart() {
-            document.getElementById('loadingState').style.display = 'none';
-            document.getElementById('cartContainer').style.display = 'none';
-            document.getElementById('emptyCart').style.display = 'block';
-        }
-
-        function changeQuantity(itemId, change) {
-            const itemIndex = cart.findIndex(item => item.id === itemId);
-            if (itemIndex !== -1) {
-                let newQuantity = cart[itemIndex].quantity + change;
-                if (newQuantity < 1) newQuantity = 1;
-                if (newQuantity > 99) newQuantity = 99;
-                
-                cart[itemIndex].quantity = newQuantity;
-                saveCart();
-                displayCart();
-                
-                showToast(`Đã cập nhật số lượng ${cart[itemIndex].name}`);
-            }
-        }
-
-        function updateQuantity(itemId, newQuantity) {
-            const itemIndex = cart.findIndex(item => item.id === itemId);
-            if (itemIndex !== -1) {
-                newQuantity = parseInt(newQuantity);
-                if (newQuantity < 1) newQuantity = 1;
-                if (newQuantity > 99) newQuantity = 99;
-                
-                cart[itemIndex].quantity = newQuantity;
-                saveCart();
-                displayCart();
-                
-                showToast(`Đã cập nhật số lượng ${cart[itemIndex].name}`);
-            }
-        }
-
-        function removeItem(itemId) {
-            if (confirm('Bạn có chắc muốn xóa món này khỏi giỏ hàng?')) {
-                cart = cart.filter(item => item.id !== itemId);
-                saveCart();
-                
-                if (cart.length === 0) {
-                    showEmptyCart();
-                } else {
-                    displayCart();
-                }
-                
-                showToast('Đã xóa món ăn khỏi giỏ hàng');
-            }
-        }
-
-        function clearCart() {
-            if (confirm('Bạn có chắc chắn muốn xóa toàn bộ giỏ hàng?')) {
-                cart = [];
-                saveCart();
-                showEmptyCart();
-                showToast('Đã xóa toàn bộ giỏ hàng');
-            }
-        }
-
-        function saveCart() {
-            localStorage.setItem('cart', JSON.stringify(cart));
-            updateCartCount();
-        }
-
-        function updateCartCount() {
-            const totalItems = cart.reduce((total, item) => total + item.quantity, 0);
-            document.getElementById('cart-count').textContent = totalItems;
-        }
-
-        function updateTotals() {
-            const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-            document.getElementById('subtotal').textContent = `${subtotal.toLocaleString()} ₫`;
-            document.getElementById('totalAmount').textContent = `${subtotal.toLocaleString()} ₫`;
-        }
-
-        function proceedToCheckout() {
-            if (cart.length === 0) {
-                alert('Giỏ hàng của bạn đang trống. Vui lòng thêm món ăn vào giỏ hàng.');
-                return;
-            }
-            
-            // Check if all items are from the same restaurant
-            const restaurantId = cart[0].restaurant_id;
-            const hasDifferentRestaurant = cart.some(item => item.restaurant_id !== restaurantId);
-            
-            if (hasDifferentRestaurant) {
-                alert('Giỏ hàng của bạn có món ăn từ nhà hàng khác. Vui lòng xóa giỏ hàng cũ trước khi đặt hàng.');
-                return;
-            }
-            
-            // Show order confirmation modal
-            showOrderConfirmation();
-        }
-
-        function showOrderConfirmation() {
-            // Populate modal with order details
-            const restaurantId = cart[0].restaurant_id;
-            const restaurantName = cart[0].restaurant_name;
-            
-            // Update restaurant info
-            document.getElementById('modalRestaurantName').textContent = restaurantName;
-            document.getElementById('modalRestaurantAddress').textContent = 'Địa chỉ giao hàng sẽ được cập nhật';
-            
-            // Populate order items
-            let orderItemsHtml = '';
-            cart.forEach(item => {
-                orderItemsHtml += `
-                    <div class="row align-items-center py-2 border-bottom">
-                        <div class="col-md-6">
-                            <div class="d-flex align-items-center">
-                                <img src="${item.image || 'assets/images/default-food.jpg'}" 
-                                     class="rounded me-3" 
-                                     style="width: 50px; height: 50px; object-fit: cover;"
-                                     alt="${item.name}"
-                                     onerror="this.src='assets/images/default-food.jpg'">
-                                <div>
-                                    <h6 class="mb-1">${item.name}</h6>
-                                    <small class="text-muted">${item.description || 'Không có mô tả'}</small>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-2 text-center">
-                            <span class="badge bg-secondary">x${item.quantity}</span>
-                        </div>
-                        <div class="col-md-2 text-center">
-                            <span class="fw-bold">${item.price.toLocaleString()} ₫</span>
-                        </div>
-                        <div class="col-md-2 text-end">
-                            <span class="fw-bold text-primary">${(item.price * item.quantity).toLocaleString()} ₫</span>
-                        </div>
-                    </div>
-                `;
-            });
-            document.getElementById('modalOrderItems').innerHTML = orderItemsHtml;
-            
-            // Calculate and update totals
-            const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-            const vat = Math.round(subtotal * 0.1); // 10% VAT
-            const total = subtotal + vat;
-            
-            document.getElementById('modalSubtotal').textContent = `${subtotal.toLocaleString()} ₫`;
-            document.getElementById('modalVAT').textContent = `${vat.toLocaleString()} ₫`;
-            document.getElementById('modalTotal').textContent = `${total.toLocaleString()} ₫`;
-            
-            // Show modal
-            const modal = new bootstrap.Modal(document.getElementById('orderConfirmationModal'));
-            modal.show();
-        }
-
-        function confirmOrder() {
-            // Show loading state
-            const confirmBtn = document.querySelector('#orderConfirmationModal .btn-primary');
-            const originalText = confirmBtn.innerHTML;
-            confirmBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Đang xử lý...';
-            confirmBtn.disabled = true;
-            
-            // Simulate order processing (in real app, this would be an API call)
-            setTimeout(() => {
-                // Create order object
-                const order = {
-                    id: 'ORD' + Date.now(),
-                    user_id: <?php echo $_SESSION['user_id']; ?>,
-                    restaurant_id: cart[0].restaurant_id,
-                    restaurant_name: cart[0].restaurant_name,
-                    items: cart,
-                    subtotal: cart.reduce((sum, item) => sum + (item.price * item.quantity), 0),
-                    vat: Math.round(cart.reduce((sum, item) => sum + (item.price * item.quantity), 0) * 0.1),
-                    total: Math.round(cart.reduce((sum, item) => sum + (item.price * item.quantity), 0) * 1.1),
-                    status: 'pending',
-                    created_at: new Date().toISOString(),
-                    delivery_time: '30-45 phút'
-                };
-                
-                // Save order to localStorage (in real app, this would go to database)
-                const orders = JSON.parse(localStorage.getItem('orders')) || [];
-                orders.push(order);
-                localStorage.setItem('orders', JSON.stringify(orders));
-                
-                // Clear cart
-                cart = [];
-                localStorage.removeItem('cart');
-                
-                // Update UI
-                updateCartCount();
-                showEmptyCart();
-                
-                // Hide modal
-                const modal = bootstrap.Modal.getInstance(document.getElementById('orderConfirmationModal'));
-                modal.hide();
-                
-                // Show success message
-                showToast('Đặt hàng thành công! Đơn hàng của bạn đã được xác nhận.');
-                
-                // Redirect to orders page after a short delay
-                setTimeout(() => {
-                    window.location.href = 'orders.php';
-                }, 2000);
-                
-            }, 1500);
-        }
-
-        function showToast(message) {
-            document.getElementById('toastMessage').textContent = message;
-            const toast = new bootstrap.Toast(document.getElementById('successToast'));
-            toast.show();
-        }
-    </script>
+    <script src="assets/js/main.js"></script>
 </body>
 </html>
