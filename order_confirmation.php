@@ -210,7 +210,7 @@ $order_items = mysqli_stmt_get_result($items_stmt);
                         
                         <div class="d-flex justify-content-between align-items-center">
                             <h5 class="mb-0">Tổng cộng:</h5>
-                            <h4 class="text-primary mb-0"><?php echo number_format($order['total_amount'], 0, ',', '.'); ?> ₫</h4>
+                            <h4 class="text-primary mb-0"><?php echo number_format($order['total'], 0, ',', '.'); ?> ₫</h4>
                         </div>
                     </div>
                 </div>

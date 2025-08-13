@@ -323,19 +323,19 @@ if ($orders_result) {
                         <div class="row">
                             <div class="col-md-8">
                                 <div class="order-timeline">
-                                    <div class="timeline-item active">
+                                    <div class="timeline-item<?php if(in_array($order['status'], ['confirmed','preparing','delivering','delivered'])) echo ' active'; ?>">
                                         <strong>Đơn hàng đã được xác nhận</strong>
                                         <br><small class="text-muted"><?php echo date('d/m/Y H:i', strtotime($order['created_at'])); ?></small>
                                     </div>
-                                    <div class="timeline-item">
+                                    <div class="timeline-item<?php if(in_array($order['status'], ['preparing','delivering','delivered'])) echo ' active'; ?>">
                                         <strong>Nhà hàng đang chuẩn bị</strong>
                                         <br><small class="text-muted">Dự kiến: 30-45 phút</small>
                                     </div>
-                                    <div class="timeline-item">
+                                    <div class="timeline-item<?php if(in_array($order['status'], ['delivering','delivered'])) echo ' active'; ?>">
                                         <strong>Đang giao hàng</strong>
                                         <br><small class="text-muted">Shipper đang đến</small>
                                     </div>
-                                    <div class="timeline-item">
+                                    <div class="timeline-item<?php if($order['status'] == 'delivered') echo ' active'; ?>">
                                         <strong>Giao hàng thành công</strong>
                                         <br><small class="text-muted">Đã hoàn thành</small>
                                     </div>
