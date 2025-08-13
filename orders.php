@@ -345,7 +345,7 @@ if ($orders_result) {
                                 <div class="text-end">
                                     <div class="mb-2">
                                         <small class="text-muted">Tổng cộng:</small>
-                                        <br><strong class="text-primary fs-5"><?php echo number_format($order['total_amount'], 0, ',', '.'); ?> ₫</strong>
+                                        <br><strong class="text-primary fs-5"><?php echo number_format($order['total'], 0, ',', '.'); ?> ₫</strong>
                                     </div>
                                 </div>
                             </div>

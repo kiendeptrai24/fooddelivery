@@ -61,19 +61,34 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         
         try {
             // Create order
-            $order_sql = "INSERT INTO orders (user_id, restaurant_id, total, delivery_address, delivery_phone, payment_method, notes) VALUES (?, ?, ?, ?, ?, ?, ?)";
+            $order_sql = "INSERT INTO orders (user_id, restaurant_id, restaurant_name, subtotal, vat, total, delivery_address, payment_method, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
             $order_stmt = mysqli_prepare($conn, $order_sql);
-            mysqli_stmt_bind_param($order_stmt, "iidssss", $_SESSION['user_id'], $restaurant_id, $total, $delivery_address, $delivery_phone, $payment_method, $notes);
+            $subtotal = $total; // Nếu chưa có giảm giá/thuế, subtotal = total
+            $vat = 0.00; // Nếu chưa tính VAT
+            $restaurant_name_db = $restaurant_name;
+            mysqli_stmt_bind_param(
+                $order_stmt,
+                "iissddsss",
+                $_SESSION['user_id'],
+                $restaurant_id,
+                $restaurant_name_db,
+                $subtotal,
+                $vat,
+                $total,
+                $delivery_address,
+                $payment_method,
+                $notes
+            );
             
             if (mysqli_stmt_execute($order_stmt)) {
                 $order_id = mysqli_insert_id($conn);
                 
                 // Insert order items
-                $item_sql = "INSERT INTO order_items (order_id, menu_item_id, quantity, price) VALUES (?, ?, ?, ?)";
+                $item_sql = "INSERT INTO order_items (order_id, menu_item_id, name, description, price, quantity, image) VALUES (?, ?, ?, ?, ?, ?, ?)";
                 $item_stmt = mysqli_prepare($conn, $item_sql);
-                
+                mysqli_data_seek($cart_items, 0); // Đảm bảo pointer về đầu
                 while ($cart_item = mysqli_fetch_assoc($cart_items)) {
-                    mysqli_stmt_bind_param($item_stmt, "iiid", $order_id, $cart_item['menu_item_id'], $cart_item['quantity'], $cart_item['price']);
+                    mysqli_stmt_bind_param($item_stmt, "iissdis", $order_id, $cart_item['menu_item_id'], $cart_item['name'], $cart_item['description'], $cart_item['price'], $cart_item['quantity'], $cart_item['image']);
                     mysqli_stmt_execute($item_stmt);
                 }
                 
@@ -89,7 +104,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 // Redirect to order confirmation
                 header("Location: order_confirmation.php?id=$order_id");
                 exit();
-                
             } else {
                 throw new Exception('Không thể tạo đơn hàng');
             }
