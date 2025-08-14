@@ -46,9 +46,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['edit_menu'])) {
     $name = trim($_POST['name']);
     $description = trim($_POST['description']);
     $price = floatval($_POST['price']);
-    $sql = "UPDATE menu_items SET name=?, description=?, price=? WHERE id=?";
-    $stmt = mysqli_prepare($conn, $sql);
-    mysqli_stmt_bind_param($stmt, "ssdi", $name, $description, $price, $id);
+    $image_url = null;
+    if (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
+        $img_name = basename($_FILES['image']['name']);
+        $target_dir = '../assets/images/';
+        $target_file = $target_dir . $img_name;
+        if (move_uploaded_file($_FILES['image']['tmp_name'], $target_file)) {
+            $image_url = 'assets/images/' . $img_name;
+        }
+    }
+    if ($image_url) {
+        $sql = "UPDATE menu_items SET name=?, description=?, price=?, image=? WHERE id=?";
+        $stmt = mysqli_prepare($conn, $sql);
+        mysqli_stmt_bind_param($stmt, "ssdsi", $name, $description, $price, $image_url, $id);
+    } else {
+        $sql = "UPDATE menu_items SET name=?, description=?, price=? WHERE id=?";
+        $stmt = mysqli_prepare($conn, $sql);
+        mysqli_stmt_bind_param($stmt, "ssdi", $name, $description, $price, $id);
+    }
     mysqli_stmt_execute($stmt);
     header('Location: menu.php');
     exit();
@@ -183,7 +198,7 @@ $categories = mysqli_query($conn, "SELECT id, name FROM categories");
                                     <tr>
                                         <td><?php echo $item['id']; ?></td>
                                         <td>
-                                            <form method="POST" class="d-inline-flex">
+                                            <form method="POST" class="d-inline-flex" enctype="multipart/form-data">
                                                 <input type="hidden" name="edit_menu" value="1">
                                                 <input type="hidden" name="id" value="<?php echo $item['id']; ?>">
                                                 <input type="text" name="name" value="<?php echo htmlspecialchars($item['name']); ?>" class="form-control form-control-sm me-1" style="width:110px;">
@@ -194,6 +209,10 @@ $categories = mysqli_query($conn, "SELECT id, name FROM categories");
                                         <td><?php echo htmlspecialchars($item['category_name']); ?></td>
                                         <td><?php echo isset($item['created_at']) ? date('d/m/Y', strtotime($item['created_at'])) : '-'; ?></td>
                                         <td>
+                                                <?php if (!empty($item['image'])): ?>
+                                                    <img src="../<?php echo $item['image']; ?>" alt="Ảnh món" style="width:40px;height:40px;object-fit:cover;" class="me-1 mb-1">
+                                                <?php endif; ?>
+                                                <input type="file" name="image" class="form-control form-control-sm mb-1" accept="image/*">
                                                 <button type="submit" class="btn btn-sm btn-primary me-1"><i class="fas fa-save"></i></button>
                                             </form>
                                             <a href="menu.php?delete=<?php echo $item['id']; ?>" class="btn btn-sm btn-danger" onclick="return confirm('Xóa món này?');"><i class="fas fa-trash"></i></a>

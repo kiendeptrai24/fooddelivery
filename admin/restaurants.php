@@ -50,9 +50,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['edit_restaurant'])) {
     $address = trim($_POST['address']);
     $phone = trim($_POST['phone']);
     $status = $_POST['status'];
-    $sql = "UPDATE restaurants SET name=?, description=?, cuisine=?, address=?, phone=?, status=? WHERE id=?";
-    $stmt = mysqli_prepare($conn, $sql);
-    mysqli_stmt_bind_param($stmt, "ssssssi", $name, $description, $cuisine, $address, $phone, $status, $id);
+    $image_url = null;
+    if (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
+        $img_name = basename($_FILES['image']['name']);
+        $target_dir = '../assets/images/';
+        $target_file = $target_dir . $img_name;
+        if (move_uploaded_file($_FILES['image']['tmp_name'], $target_file)) {
+            $image_url = 'assets/images/' . $img_name;
+        }
+    }
+    if ($image_url) {
+        $sql = "UPDATE restaurants SET name=?, description=?, cuisine=?, address=?, phone=?, status=?, image=? WHERE id=?";
+        $stmt = mysqli_prepare($conn, $sql);
+        mysqli_stmt_bind_param($stmt, "sssssssi", $name, $description, $cuisine, $address, $phone, $status, $image_url, $id);
+    } else {
+        $sql = "UPDATE restaurants SET name=?, description=?, cuisine=?, address=?, phone=?, status=? WHERE id=?";
+        $stmt = mysqli_prepare($conn, $sql);
+        mysqli_stmt_bind_param($stmt, "ssssssi", $name, $description, $cuisine, $address, $phone, $status, $id);
+    }
     mysqli_stmt_execute($stmt);
     header('Location: restaurants.php');
     exit();
@@ -171,7 +186,7 @@ $restaurants_result = mysqli_query($conn, $restaurants_sql);
                                     <tr>
                                         <td><?php echo $restaurant['id']; ?></td>
                                         <td>
-                                            <form method="POST" class="d-inline-flex">
+                                            <form method="POST" class="d-inline-flex" enctype="multipart/form-data">
                                                 <input type="hidden" name="edit_restaurant" value="1">
                                                 <input type="hidden" name="id" value="<?php echo $restaurant['id']; ?>">
                                                 <input type="text" name="name" value="<?php echo htmlspecialchars($restaurant['name']); ?>" class="form-control form-control-sm me-1" style="width:110px;">
@@ -188,6 +203,10 @@ $restaurants_result = mysqli_query($conn, $restaurants_sql);
                                         </td>
                                         <td><?php echo date('d/m/Y', strtotime($restaurant['created_at'])); ?></td>
                                         <td>
+                                                <?php if (!empty($restaurant['image'])): ?>
+                                                    <img src="../<?php echo $restaurant['image']; ?>" alt="Ảnh nhà hàng" style="width:40px;height:40px;object-fit:cover;" class="me-1 mb-1">
+                                                <?php endif; ?>
+                                                <input type="file" name="image" class="form-control form-control-sm mb-1" accept="image/*">
                                                 <button type="submit" class="btn btn-sm btn-primary me-1"><i class="fas fa-save"></i></button>
                                             </form>
                                             <a href="restaurants.php?delete=<?php echo $restaurant['id']; ?>" class="btn btn-sm btn-danger" onclick="return confirm('Xóa nhà hàng này?');"><i class="fas fa-trash"></i></a>
