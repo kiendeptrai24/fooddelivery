@@ -178,7 +178,7 @@ $categories = [
                     </div>
                 </div>
                 <div class="col-lg-6 text-center">
-                    <img src="https://via.placeholder.com/500x400/FF6B6B/FFFFFF?text=Food+Delivery" 
+                    <img src="assets/images/fooddelivery.png" 
                          alt="Food Delivery" class="img-fluid" style="max-width: 500px; border-radius: 20px;">
                 </div>
             </div>
@@ -268,7 +268,7 @@ $categories = [
                             <h5 class="card-title"><?php echo htmlspecialchars($restaurant['name']); ?></h5>
                             <p class="card-text text-muted"><?php echo htmlspecialchars($restaurant['description']); ?></p>
                             <div class="d-flex justify-content-between align-items-center">
-                                <span class="badge bg-primary"><?php echo htmlspecialchars($restaurant['cuisine_type']); ?></span>
+                                <span class="badge bg-primary"><?php echo htmlspecialchars($restaurant['cuisine']); ?></span>
                                 <a href="restaurants.php?id=<?php echo $restaurant['id']; ?>" class="btn btn-outline-primary btn-sm">Xem menu</a>
                             </div>
                         </div>
