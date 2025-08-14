@@ -23,9 +23,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_menu'])) {
     $price = floatval($_POST['price']);
     $category_id = intval($_POST['category_id']);
     $restaurant_id = intval($_POST['restaurant_id']);
-    $sql = "INSERT INTO menu_items (name, description, price, category_id, restaurant_id) VALUES (?, ?, ?, ?, ?)";
+    $image_url = null;
+    if (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
+        $img_name = basename($_FILES['image']['name']);
+        $target_dir = '../assets/images/';
+        $target_file = $target_dir . $img_name;
+        if (move_uploaded_file($_FILES['image']['tmp_name'], $target_file)) {
+            $image_url = 'assets/images/' . $img_name;
+        }
+    }
+    $sql = "INSERT INTO menu_items (name, description, price, category_id, restaurant_id, image) VALUES (?, ?, ?, ?, ?, ?)";
     $stmt = mysqli_prepare($conn, $sql);
-    mysqli_stmt_bind_param($stmt, "ssdii", $name, $description, $price, $category_id, $restaurant_id);
+    mysqli_stmt_bind_param($stmt, "ssdiss", $name, $description, $price, $category_id, $restaurant_id, $image_url);
     mysqli_stmt_execute($stmt);
     header('Location: menu.php');
     exit();
@@ -120,7 +129,7 @@ $categories = mysqli_query($conn, "SELECT id, name FROM categories");
                         <i class="fas fa-utensils me-2"></i>Quản lý thực đơn
                     </h1>
                 </div>
-                <form method="POST" class="row g-3 mb-4">
+                <form method="POST" class="row g-3 mb-4" enctype="multipart/form-data">
                     <input type="hidden" name="add_menu" value="1">
                     <div class="col-md-2"><input type="text" name="name" class="form-control" placeholder="Tên món" required></div>
                     <div class="col-md-2"><input type="text" name="description" class="form-control" placeholder="Mô tả"></div>
@@ -145,7 +154,10 @@ $categories = mysqli_query($conn, "SELECT id, name FROM categories");
                             <?php endwhile; ?>
                         </select>
                     </div>
-                    <div class="col-md-2"><button type="submit" class="btn btn-success"><i class="fas fa-plus me-1"></i>Thêm món</button></div>
+                    <div class="col-md-2">
+                        <input type="file" name="image" class="form-control" accept="image/*">
+                    </div>
+                    <div class="col-md-12"><button type="submit" class="btn btn-success"><i class="fas fa-plus me-1"></i>Thêm món</button></div>
                 </form>
                 <div class="card">
                     <div class="card-header bg-primary text-white">

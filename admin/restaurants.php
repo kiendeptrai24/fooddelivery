@@ -24,9 +24,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_restaurant'])) {
     $address = trim($_POST['address']);
     $phone = trim($_POST['phone']);
     $status = $_POST['status'];
-    $sql = "INSERT INTO restaurants (name, description, cuisine, address, phone, status) VALUES (?, ?, ?, ?, ?, ?)";
+    $image_url = null;
+    if (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
+        $img_name = basename($_FILES['image']['name']);
+        $target_dir = '../assets/images/';
+        $target_file = $target_dir . $img_name;
+        if (move_uploaded_file($_FILES['image']['tmp_name'], $target_file)) {
+            $image_url = 'assets/images/' . $img_name;
+        }
+    }
+    $sql = "INSERT INTO restaurants (name, description, cuisine, address, phone, status, image) VALUES (?, ?, ?, ?, ?, ?, ?)";
     $stmt = mysqli_prepare($conn, $sql);
-    mysqli_stmt_bind_param($stmt, "ssssss", $name, $description, $cuisine, $address, $phone, $status);
+    mysqli_stmt_bind_param($stmt, "sssssss", $name, $description, $cuisine, $address, $phone, $status, $image_url);
     mysqli_stmt_execute($stmt);
     header('Location: restaurants.php');
     exit();
@@ -119,7 +128,7 @@ $restaurants_result = mysqli_query($conn, $restaurants_sql);
                         <i class="fas fa-store me-2"></i>Quản lý nhà hàng
                     </h1>
                 </div>
-                <form method="POST" class="row g-3 mb-4">
+                <form method="POST" class="row g-3 mb-4" enctype="multipart/form-data">
                     <input type="hidden" name="add_restaurant" value="1">
                     <div class="col-md-2"><input type="text" name="name" class="form-control" placeholder="Tên nhà hàng" required></div>
                     <div class="col-md-2"><input type="text" name="cuisine" class="form-control" placeholder="Ẩm thực" required></div>
@@ -132,7 +141,10 @@ $restaurants_result = mysqli_query($conn, $restaurants_sql);
                             <option value="inactive">Ngừng</option>
                         </select>
                     </div>
-                    <div class="col-md-1"><button type="submit" class="btn btn-success"><i class="fas fa-plus me-1"></i>Thêm</button></div>
+                    <div class="col-md-1">
+                        <input type="file" name="image" class="form-control" accept="image/*">
+                    </div>
+                    <div class="col-md-12"><button type="submit" class="btn btn-success"><i class="fas fa-plus me-1"></i>Thêm</button></div>
                 </form>
                 <div class="card">
                     <div class="card-header bg-primary text-white">
