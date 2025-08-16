@@ -61,14 +61,14 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         
         try {
             // Create order
-            $order_sql = "INSERT INTO orders (user_id, restaurant_id, restaurant_name, subtotal, vat, total, delivery_address, payment_method, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
+            $order_sql = "INSERT INTO orders (user_id, restaurant_id, restaurant_name, subtotal, vat, total, delivery_address, delivery_phone, payment_method, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
             $order_stmt = mysqli_prepare($conn, $order_sql);
             $subtotal = $total; // Nếu chưa có giảm giá/thuế, subtotal = total
             $vat = 0.00; // Nếu chưa tính VAT
             $restaurant_name_db = $restaurant_name;
             mysqli_stmt_bind_param(
                 $order_stmt,
-                "iissddsss",
+                "iissddssss",
                 $_SESSION['user_id'],
                 $restaurant_id,
                 $restaurant_name_db,
@@ -76,6 +76,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 $vat,
                 $total,
                 $delivery_address,
+                $delivery_phone,
                 $payment_method,
                 $notes
             );
